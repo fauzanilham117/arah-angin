@@ -1,3060 +1,1773 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Monitoring Pesisir Teluk Bakau</title>
-
-<!-- ================= FIREBASE ================= -->
-<script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-database-compat.js"></script>
-
-<!-- ================= CHART ================= -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- ================= EXCEL ================= -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-<!-- ================= TENSORFLOW JS ================= -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-
-<style>
-
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
-    font-family:Arial, Helvetica, sans-serif;
-}
-
-body{
-    background:#f4f7fb;
-    color:#1e293b;
-}
-
-/* ================= SIDEBAR ================= */
-
-.sidebar{
-    position:fixed;
-    left:0;
-    top:0;
-    width:250px;
-    height:100vh;
-    background:#0f172a;
-    color:white;
-    padding:20px;
-    z-index:1000;
-}
-
-.logo{
-    font-size:20px;
-    font-weight:bold;
-    margin-bottom:30px;
-}
-
-.logo small{
-    display:block;
-    font-size:12px;
-    font-weight:normal;
-    color:#94a3b8;
-    margin-top:5px;
-}
-
-.menu{
-    list-style:none;
-}
-
-.menu li{
-    margin-bottom:8px;
-}
-
-.menu button{
-    width:100%;
-    border:none;
-    background:transparent;
-    color:#cbd5e1;
-    padding:13px 15px;
-    text-align:left;
-    border-radius:8px;
-    cursor:pointer;
-    font-size:14px;
-}
-
-.menu button:hover,
-.menu button.active{
-    background:#1e293b;
-    color:white;
-}
-
-/* ================= MAIN ================= */
-
-.main{
-    margin-left:250px;
-    padding:25px;
-}
-
-.topbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:25px;
-}
-
-.title h1{
-    font-size:25px;
-}
-
-.title p{
-    color:#64748b;
-    margin-top:5px;
-    font-size:14px;
-}
-
-.status-area{
-    display:flex;
-    gap:10px;
-    align-items:center;
-}
-
-.badge{
-    padding:8px 12px;
-    border-radius:20px;
-    font-size:12px;
-    font-weight:bold;
-}
-
-.realtime{
-    background:#dcfce7;
-    color:#166534;
-}
-
-.firebase-status{
-    background:#fee2e2;
-    color:#991b1b;
-}
-
-.firebase-status.connected{
-    background:#dcfce7;
-    color:#166534;
-}
-
-/* ================= PAGE ================= */
-
-.page{
-    display:none;
-}
-
-.page.active{
-    display:block;
-}
-
-/* ================= CARDS ================= */
-
-.cards{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:15px;
-    margin-bottom:20px;
-}
-
-.card{
-    background:white;
-    border-radius:12px;
-    padding:20px;
-    box-shadow:0 3px 12px rgba(0,0,0,.06);
-}
-
-.card-title{
-    color:#64748b;
-    font-size:13px;
-    margin-bottom:10px;
-}
-
-.card-value{
-    font-size:27px;
-    font-weight:bold;
-}
-
-.card-unit{
-    color:#64748b;
-    font-size:13px;
-}
-
-/* ================= GRID ================= */
-
-.grid-2{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:20px;
-    margin-bottom:20px;
-}
-
-.panel{
-    background:white;
-    border-radius:12px;
-    padding:20px;
-    box-shadow:0 3px 12px rgba(0,0,0,.06);
-    margin-bottom:20px;
-}
-
-.panel h2{
-    font-size:18px;
-    margin-bottom:5px;
-}
-
-.panel-subtitle{
-    font-size:12px;
-    color:#64748b;
-    margin-bottom:18px;
-}
-
-/* ================= COMPASS ================= */
-
-.compass-wrapper{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    padding:15px;
-}
-
-.compass{
-    position:relative;
-    width:270px;
-    height:270px;
-    border:4px solid #cbd5e1;
-    border-radius:50%;
-    background:#f8fafc;
-}
-
-.direction{
-    position:absolute;
-    font-weight:bold;
-    font-size:13px;
-    transform:translate(-50%,-50%);
-}
-
-.u{
-    left:50%;
-    top:8%;
-}
-
-.tl{
-    left:79%;
-    top:21%;
-}
-
-.t{
-    left:92%;
-    top:50%;
-}
-
-.tg{
-    left:79%;
-    top:79%;
-}
-
-.s{
-    left:50%;
-    top:92%;
-}
-
-.bd{
-    left:21%;
-    top:79%;
-}
-
-.b{
-    left:8%;
-    top:50%;
-}
-
-.bl{
-    left:21%;
-    top:21%;
-}
-
-.needle{
-    position:absolute;
-    width:5px;
-    height:105px;
-    left:50%;
-    top:50%;
-    transform-origin:50% 90%;
-    transform:translate(-50%,-90%) rotate(0deg);
-    background:#ef4444;
-    border-radius:5px;
-    transition:transform .5s ease;
-}
-
-.needle:after{
-    content:"";
-    position:absolute;
-    bottom:-8px;
-    left:-6px;
-    width:17px;
-    height:17px;
-    border-radius:50%;
-    background:#334155;
-}
-
-.degree{
-    text-align:center;
-    margin-top:10px;
-    font-size:16px;
-    font-weight:bold;
-}
-
-/* ================= CHART ================= */
-
-.chart-container{
-    position:relative;
-    height:320px;
-}
-
-.chart-container.large{
-    height:380px;
-}
-
-/* ================= SEA ================= */
-
-.sea-box{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:20px;
-}
-
-.sea-value{
-    font-size:30px;
-    font-weight:bold;
-    margin-top:8px;
-}
-
-/* ================= TABLE ================= */
-
-.table-wrapper{
-    overflow-x:auto;
-}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-}
-
-th,
-td{
-    padding:11px 10px;
-    border-bottom:1px solid #e2e8f0;
-    text-align:left;
-    font-size:13px;
-}
-
-th{
-    background:#f8fafc;
-}
-
-tbody tr:hover{
-    background:#f8fafc;
-}
-
-/* ================= BUTTON ================= */
-
-.btn{
-    border:none;
-    border-radius:7px;
-    padding:10px 14px;
-    cursor:pointer;
-    background:#2563eb;
-    color:white;
-    font-size:13px;
-}
-
-.btn:hover{
-    opacity:.9;
-}
-
-.btn.secondary{
-    background:#475569;
-}
-
-.btn.success{
-    background:#16a34a;
-}
-
-.btn.warning{
-    background:#d97706;
-}
-
-.button-group{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-bottom:15px;
-}
-
-/* ================= SETTINGS ================= */
-
-.setting-row{
-    display:flex;
-    gap:10px;
-    align-items:center;
-}
-
-.setting-row input{
-    padding:10px;
-    border:1px solid #cbd5e1;
-    border-radius:7px;
-    width:150px;
-}
-
-/* ================= LSTM ================= */
-
-.lstm-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:15px;
-    flex-wrap:wrap;
-    margin-bottom:20px;
-}
-
-.lstm-info{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:15px;
-    margin-bottom:20px;
-}
-
-.lstm-stat{
-    background:#f8fafc;
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    padding:15px;
-}
-
-.lstm-stat-title{
-    color:#64748b;
-    font-size:12px;
-    margin-bottom:7px;
-}
-
-.lstm-stat-value{
-    font-size:22px;
-    font-weight:bold;
-}
-
-.lstm-status{
-    padding:12px 15px;
-    background:#eff6ff;
-    border-radius:8px;
-    color:#1d4ed8;
-    margin-bottom:20px;
-    font-size:13px;
-}
-
-.forecast-table td{
-    text-align:center;
-}
-
-.forecast-table th{
-    text-align:center;
-}
-
-.prediction-positive{
-    font-weight:bold;
-}
-
-.note{
-    font-size:12px;
-    color:#64748b;
-    line-height:1.6;
-}
-
-/* ================= MODAL ================= */
-
-.modal{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(15,23,42,.5);
-    z-index:2000;
-    justify-content:center;
-    align-items:center;
-}
-
-.modal.show{
-    display:flex;
-}
-
-.modal-box{
-    background:white;
-    width:90%;
-    max-width:500px;
-    border-radius:12px;
-    padding:25px;
-}
-
-.modal-header{
-    display:flex;
-    justify-content:space-between;
-    margin-bottom:20px;
-}
-
-.close{
-    cursor:pointer;
-    font-size:22px;
-}
-
-/* ================= RESPONSIVE ================= */
-
-@media(max-width:1000px){
-
-    .cards{
-        grid-template-columns:repeat(2,1fr);
-    }
-
-    .lstm-info{
-        grid-template-columns:repeat(2,1fr);
-    }
-
-    .grid-2{
-        grid-template-columns:1fr;
-    }
-
-}
-
-@media(max-width:700px){
-
-    .sidebar{
-        width:100%;
-        height:auto;
-        position:relative;
-    }
-
-    .main{
-        margin-left:0;
-    }
-
-    .cards{
-        grid-template-columns:1fr;
-    }
-
-    .lstm-info{
-        grid-template-columns:1fr;
-    }
-
-    .topbar{
-        flex-direction:column;
-        align-items:flex-start;
-        gap:10px;
-    }
-
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Monitoring Pesisir</title>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-database-compat.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", Arial, sans-serif;
+            background: #f4f7fb;
+            color: #172033;
+        }
+
+        /* ================= SIDEBAR ================= */
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: #071a33;
+            color: white;
+            padding: 25px 18px;
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 10px 30px;
+        }
+
+        .logo-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            background: #1677ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .logo-text h2 {
+            font-size: 17px;
+        }
+
+        .logo-text p {
+            font-size: 11px;
+            color: #9eacc0;
+            margin-top: 3px;
+        }
+
+        .menu-title {
+            font-size: 11px;
+            color: #74859c;
+            margin: 15px 12px 8px;
+            text-transform: uppercase;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 14px;
+            margin-bottom: 5px;
+            border-radius: 9px;
+            color: #aab7c8;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .menu-item:hover,
+        .menu-item.active {
+            background: #12365f;
+            color: white;
+        }
+
+        .menu-icon {
+            width: 22px;
+            text-align: center;
+        }
+
+        .sidebar-bottom {
+            position: absolute;
+            bottom: 25px;
+            left: 20px;
+            right: 20px;
+        }
+
+        .connection {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #9eacc0;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ff4757;
+        }
+
+        .status-dot.connected {
+            background: #2ed573;
+        }
+
+        /* ================= MAIN ================= */
+
+        .main {
+            margin-left: 250px;
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: white;
+            height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 35px;
+            border-bottom: 1px solid #e6ebf2;
+        }
+
+        .page-title h1 {
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .page-title p {
+            font-size: 12px;
+            color: #7d8798;
+            margin-top: 4px;
+        }
+
+        .top-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .content {
+            padding: 30px 35px;
+        }
+
+        /* ================= SENSOR CARDS ================= */
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e7ecf2;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(22, 34, 51, 0.03);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .card-label {
+            color: #788499;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .card-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: #edf5ff;
+            color: #1677ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #162238;
+        }
+
+        .card-unit {
+            font-size: 13px;
+            color: #7c8798;
+            margin-left: 4px;
+        }
+
+        .card-footer {
+            margin-top: 9px;
+            font-size: 11px;
+            color: #8c97a7;
+        }
+
+        /* ================= GRID ================= */
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            border: 1px solid #e7ecf2;
+            border-radius: 15px;
+            padding: 22px;
+            box-shadow: 0 4px 15px rgba(22, 34, 51, 0.03);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .panel-title h3 {
+            font-size: 15px;
+        }
+
+        .panel-title span {
+            font-size: 11px;
+            color: #8a95a5;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        /* ================= COMPASS ================= */
+
+        .compass-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+        }
+
+        .compass {
+            position: relative;
+            width: 235px;
+            height: 235px;
+            border: 3px solid #dce4ee;
+            border-radius: 50%;
+            background: radial-gradient(circle, #f9fbfd 0%, #eef3f8 100%);
+            box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.04);
+        }
+
+        .compass::before {
+            content: "";
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            left: 10%;
+            top: 10%;
+            border: 1px dashed #c9d2de;
+            border-radius: 50%;
+        }
+
+        .direction {
+            position: absolute;
+            font-size: 13px;
+            font-weight: 800;
+            color: #59677a;
+        }
+
+        .north {
+            top: 9px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #1677ff;
+        }
+
+        .east {
+            right: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .south {
+            bottom: 9px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .west {
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .needle {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 4px;
+            height: 85px;
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            background: #1677ff;
+            border-radius: 5px;
+            transition: transform 0.8s ease;
+        }
+
+        .needle::after {
+            content: "";
+            position: absolute;
+            top: -9px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 15px solid #1677ff;
+        }
+
+        .compass-center {
+            position: absolute;
+            width: 17px;
+            height: 17px;
+            border-radius: 50%;
+            background: #172033;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+        }
+
+        .direction-value {
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        .direction-value strong {
+            font-size: 22px;
+        }
+
+        .direction-value p {
+            font-size: 11px;
+            color: #8b96a6;
+            margin-top: 3px;
+        }
+
+        /* ================= ENVIRONMENT ================= */
+
+        .environment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .environment-item {
+            border: 1px solid #edf0f4;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .environment-item span {
+            display: block;
+            color: #8290a1;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .environment-item strong {
+            font-size: 22px;
+        }
+
+        /* ================= TABLE ================= */
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th {
+            background: #f7f9fc;
+            color: #718096;
+            text-align: left;
+            padding: 12px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 13px 12px;
+            border-bottom: 1px solid #edf0f4;
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ================= SETTINGS ================= */
+
+        .settings {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 15, 30, 0.55);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings.show {
+            display: flex;
+        }
+
+        .settings-box {
+            width: 400px;
+            max-width: 90%;
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+        }
+
+        .settings-box h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 17px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #657286;
+            margin-bottom: 7px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #dce3eb;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 17px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-cancel {
+            background: #edf0f4;
+            color: #596579;
+        }
+
+        .btn-save {
+            background: #1677ff;
+            color: white;
+        }
+
+        /* ================= LOADING ================= */
+
+        .loading {
+            color: #8a95a5;
+            font-size: 12px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #8b96a6;
+            font-size: 12px;
+        }
+
+        /* ================= RESPONSIVE ================= */
+
+        @media (max-width: 1100px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .sidebar {
+                width: 65px;
+                padding: 20px 8px;
+            }
+
+            .logo {
+                justify-content: center;
+                padding: 0 0 25px;
+            }
+
+            .logo-text,
+            .menu-title,
+            .menu-item span,
+            .sidebar-bottom span {
+                display: none;
+            }
+
+            .menu-item {
+                justify-content: center;
+                padding: 13px 5px;
+            }
+
+            .sidebar-bottom {
+                left: 18px;
+            }
+
+            .main {
+                margin-left: 65px;
+            }
+
+            .topbar {
+                padding: 0 18px;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .environment-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title h1 {
+                font-size: 18px;
+            }
+
+            .page-title p {
+                font-size: 10px;
+            }
+
+            .top-status {
+                font-size: 10px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-<!-- ========================================================= -->
-<!-- SIDEBAR -->
-<!-- ========================================================= -->
+    <!-- ================= SIDEBAR ================= -->
 
-<aside class="sidebar">
+    <aside class="sidebar">
 
-    <div class="logo">
-        MONITORING PESISIR
-        <small>Teluk Bakau</small>
-    </div>
+        <div class="logo">
+            <div class="logo-icon">🌊</div>
 
-    <ul class="menu">
-
-        <li>
-            <button class="menu-btn active" data-page="dashboard">
-                Dashboard
-            </button>
-        </li>
-
-        <li>
-            <button class="menu-btn" data-page="history">
-                Riwayat Data
-            </button>
-        </li>
-
-        <li>
-            <button class="menu-btn" data-page="lstm">
-                LSTM
-            </button>
-        </li>
-
-        <li>
-            <button class="menu-btn" data-page="settings">
-                Pengaturan
-            </button>
-        </li>
-
-    </ul>
-
-</aside>
-
-
-<!-- ========================================================= -->
-<!-- MAIN -->
-<!-- ========================================================= -->
-
-<main class="main">
-
-    <div class="topbar">
-
-        <div class="title">
-            <h1>Sistem Monitoring Pesisir</h1>
-            <p>Monitoring cuaca dan tinggi muka air laut</p>
+            <div class="logo-text">
+                <h2>Monitoring Pesisir</h2>
+                <p>IoT Environmental System</p>
+            </div>
         </div>
 
-        <div class="status-area">
+        <div class="menu-title">
+            Menu
+        </div>
 
-            <div class="badge realtime">
-                ● REALTIME
+        <div class="menu-item active" onclick="showDashboard()">
+            <div class="menu-icon">▦</div>
+            <span>Dashboard</span>
+        </div>
+
+        <div class="menu-item" onclick="scrollToData()">
+            <div class="menu-icon">📊</div>
+            <span>Data Sensor</span>
+        </div>
+
+        <div class="menu-item" onclick="openSettings()">
+            <div class="menu-icon">⚙</div>
+            <span>Pengaturan</span>
+        </div>
+
+        <div class="sidebar-bottom">
+            <div class="connection">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="connectionText">Menghubungkan...</span>
+            </div>
+        </div>
+
+    </aside>
+
+
+    <!-- ================= MAIN ================= -->
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="page-title">
+                <h1>Dashboard Monitoring Pesisir</h1>
+                <p>Arah angin, kecepatan angin, kondisi atmosfer dan tinggi muka air</p>
             </div>
 
-            <div id="firebaseStatus"
-                 class="badge firebase-status">
-                Firebase: menghubungkan...
+            <div class="top-status">
+                <div id="topStatusDot" class="status-dot"></div>
+                <span id="topStatus">Offline</span>
             </div>
 
-        </div>
-
-    </div>
+        </header>
 
 
-<!-- ========================================================= -->
-<!-- DASHBOARD -->
-<!-- ========================================================= -->
+        <section class="content">
 
-<section id="dashboard" class="page active">
+            <!-- ================= SENSOR CARDS ================= -->
 
-    <div class="cards">
+            <div class="cards">
 
-        <div class="card">
-            <div class="card-title">Kecepatan Angin</div>
-            <div class="card-value" id="windSpeed">0.00</div>
-            <div class="card-unit">m/s</div>
-        </div>
+                <div class="card">
 
-        <div class="card">
-            <div class="card-title">Arah Angin</div>
-            <div class="card-value" id="windDirection">Utara</div>
-            <div class="card-unit" id="windDegree">0°</div>
-        </div>
+                    <div class="card-header">
+                        <div class="card-label">
+                            KECEPATAN ANGIN
+                        </div>
 
-        <div class="card">
-            <div class="card-title">Suhu</div>
-            <div class="card-value" id="temperature">0.00</div>
-            <div class="card-unit">°C</div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Kelembaban</div>
-            <div class="card-value" id="humidity">0.00</div>
-            <div class="card-unit">%</div>
-        </div>
-
-    </div>
-
-
-    <!-- ================= COMPASS ================= -->
-
-    <div class="grid-2">
-
-        <div class="panel">
-
-            <h2>Arah Angin</h2>
-            <div class="panel-subtitle">
-                Posisi arah angin realtime
-            </div>
-
-            <div class="compass-wrapper">
-
-                <div>
-
-                    <div class="compass">
-
-                        <span class="direction u">U</span>
-                        <span class="direction tl">TL</span>
-                        <span class="direction t">T</span>
-                        <span class="direction tg">TG</span>
-                        <span class="direction s">S</span>
-                        <span class="direction bd">BD</span>
-                        <span class="direction b">B</span>
-                        <span class="direction bl">BL</span>
-
-                        <div id="needle"
-                             class="needle"></div>
-
+                        <div class="card-icon">
+                            💨
+                        </div>
                     </div>
 
-                    <div id="compassDegree"
-                         class="degree">
-                        0°
+                    <div>
+                        <span id="windSpeed" class="card-value">0.00</span>
+                        <span class="card-unit">m/s</span>
+                    </div>
+
+                    <div class="card-footer">
+                        <span id="windSpeedKmh">0.00 km/h</span>
                     </div>
 
                 </div>
 
-            </div>
 
-        </div>
+                <div class="card">
 
+                    <div class="card-header">
+                        <div class="card-label">
+                            ARAH ANGIN
+                        </div>
 
-        <!-- ================= WIND CHART ================= -->
+                        <div class="card-icon">
+                            🧭
+                        </div>
+                    </div>
 
-        <div class="panel">
+                    <div>
+                        <span id="windDirection" class="card-value">-</span>
+                    </div>
 
-            <h2>Grafik Kecepatan Angin</h2>
-
-            <div class="panel-subtitle">
-                100 data terakhir
-            </div>
-
-            <div class="chart-container">
-                <canvas id="windChart"></canvas>
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ================= ENVIRONMENT ================= -->
-
-    <div class="panel">
-
-        <h2>Lingkungan</h2>
-
-        <div class="panel-subtitle">
-            Suhu, kelembaban, dan tekanan udara
-        </div>
-
-        <div class="chart-container large">
-            <canvas id="environmentChart"></canvas>
-        </div>
-
-    </div>
-
-
-    <!-- ================= SEA LEVEL ================= -->
-
-    <div class="panel">
-
-        <h2>Tinggi Muka Air Laut</h2>
-
-        <div class="panel-subtitle">
-            Nilai dihitung dari tinggi sensor dikurangi jarak sensor
-        </div>
-
-        <div class="sea-box">
-
-            <div>
-                <div class="card-title">
-                    Jarak Sensor ke Permukaan Air
-                </div>
-
-                <div class="sea-value"
-                     id="distance">
-                    0.00 m
-                </div>
-            </div>
-
-            <div>
-                <div class="card-title">
-                    Tinggi Muka Air
-                </div>
-
-                <div class="sea-value"
-                     id="waterLevel">
-                    0.00 m
-                </div>
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ================= DATA SOURCE ================= -->
-
-    <div class="panel">
-
-        <h2>Sumber Data</h2>
-
-        <p class="note">
-            Data realtime dibaca dari Firebase Realtime Database:
-            <strong>cuaca/history</strong>
-        </p>
-
-        <p class="note"
-           style="margin-top:8px;">
-            Jumlah data:
-            <strong id="totalData">0</strong>
-        </p>
-
-    </div>
-
-</section>
-
-
-<!-- ========================================================= -->
-<!-- HISTORY -->
-<!-- ========================================================= -->
-
-<section id="history" class="page">
-
-    <div class="panel">
-
-        <h2>Riwayat Data</h2>
-
-        <div class="panel-subtitle">
-            Data terbaru ditampilkan pada bagian paling atas.
-        </div>
-
-        <div class="button-group">
-
-            <button class="btn"
-                    onclick="exportCSV()">
-                Export CSV
-            </button>
-
-            <button class="btn success"
-                    onclick="exportExcel()">
-                Export Excel
-            </button>
-
-        </div>
-
-        <div class="table-wrapper">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>No</th>
-                        <th>Tanggal</th>
-                        <th>Waktu</th>
-                        <th>Arah</th>
-                        <th>Kecepatan</th>
-                        <th>Suhu</th>
-                        <th>Kelembaban</th>
-                        <th>Tekanan</th>
-                        <th>Jarak</th>
-                        <th>Tinggi Air</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody id="historyTable">
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ========================================================= -->
-<!-- LSTM -->
-<!-- ========================================================= -->
-
-<section id="lstm" class="page">
-
-    <div class="panel">
-
-        <div class="lstm-header">
-
-            <div>
-
-                <h2>Prediksi LSTM</h2>
-
-                <div class="panel-subtitle">
-                    Prediksi 7 hari menggunakan data historis
-                    yang sudah tersedia di Firebase
-                </div>
-
-            </div>
-
-            <button id="trainButton"
-                    class="btn"
-                    onclick="trainLSTM()">
-
-                Latih LSTM
-
-            </button>
-
-        </div>
-
-
-        <!-- ================= INFORMATION ================= -->
-
-        <div class="lstm-info">
-
-            <div class="lstm-stat">
-
-                <div class="lstm-stat-title">
-                    Total Data Firebase
-                </div>
-
-                <div id="lstmTotalData"
-                     class="lstm-stat-value">
-                    0
-                </div>
-
-            </div>
-
-
-            <div class="lstm-stat">
-
-                <div class="lstm-stat-title">
-                    Jumlah Hari
-                </div>
-
-                <div id="lstmTotalDays"
-                     class="lstm-stat-value">
-                    0
-                </div>
-
-            </div>
-
-
-            <div class="lstm-stat">
-
-                <div class="lstm-stat-title">
-                    Window LSTM
-                </div>
-
-                <div id="lstmWindow"
-                     class="lstm-stat-value">
-                    7
-                </div>
-
-            </div>
-
-
-            <div class="lstm-stat">
-
-                <div class="lstm-stat-title">
-                    Prediksi
-                </div>
-
-                <div class="lstm-stat-value">
-                    7 Hari
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div id="lstmStatus"
-             class="lstm-status">
-
-            Data LSTM belum dilatih.
-
-        </div>
-
-
-        <!-- ================= DAILY DATA ================= -->
-
-        <div class="panel"
-             style="box-shadow:none;border:1px solid #e2e8f0;">
-
-            <h2>Data Historis yang Digunakan</h2>
-
-            <div class="panel-subtitle">
-
-                Data dikelompokkan berdasarkan tanggal dari
-                <strong>cuaca/history</strong>.
-
-            </div>
-
-            <div class="table-wrapper">
-
-                <table>
-
-                    <thead>
-
-                        <tr>
-
-                            <th>Tanggal</th>
-                            <th>Angin (m/s)</th>
-                            <th>Suhu (°C)</th>
-                            <th>Kelembaban (%)</th>
-                            <th>Tekanan (hPa)</th>
-                            <th>Tinggi Air (m)</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody id="lstmDataTable">
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-
-        <!-- ================= FORECAST ================= -->
-
-        <div class="panel"
-             style="box-shadow:none;border:1px solid #e2e8f0;">
-
-            <div class="lstm-header">
-
-                <div>
-
-                    <h2>Prediksi 7 Hari</h2>
-
-                    <div class="panel-subtitle">
-                        Hasil prediksi dari model LSTM
+                    <div class="card-footer">
+                        <span id="windDegree">0°</span>
                     </div>
 
                 </div>
 
-                <div class="button-group">
 
-                    <button class="btn"
-                            onclick="exportForecastCSV()">
+                <div class="card">
 
-                        CSV
+                    <div class="card-header">
+                        <div class="card-label">
+                            SUHU UDARA
+                        </div>
 
-                    </button>
+                        <div class="card-icon">
+                            🌡️
+                        </div>
+                    </div>
 
-                    <button class="btn success"
-                            onclick="exportForecastExcel()">
+                    <div>
+                        <span id="temperature" class="card-value">0.00</span>
+                        <span class="card-unit">°C</span>
+                    </div>
 
-                        Excel
+                    <div class="card-footer">
+                        Sensor BME280
+                    </div>
 
-                    </button>
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+                        <div class="card-label">
+                            KELEMBAPAN
+                        </div>
+
+                        <div class="card-icon">
+                            💧
+                        </div>
+                    </div>
+
+                    <div>
+                        <span id="humidity" class="card-value">0.00</span>
+                        <span class="card-unit">%</span>
+                    </div>
+
+                    <div class="card-footer">
+                        Sensor BME280
+                    </div>
 
                 </div>
 
             </div>
 
 
-            <div class="table-wrapper">
+            <!-- ================= CHART + COMPASS ================= -->
 
-                <table class="forecast-table">
+            <div class="grid">
 
-                    <thead>
+                <div class="panel">
 
-                        <tr>
+                    <div class="panel-title">
 
-                            <th>Hari</th>
-                            <th>Tanggal</th>
-                            <th>Angin (m/s)</th>
-                            <th>Suhu (°C)</th>
-                            <th>Kelembaban (%)</th>
-                            <th>Tekanan (hPa)</th>
-                            <th>Tinggi Air (m)</th>
+                        <h3>Kecepatan Angin</h3>
 
-                        </tr>
+                        <span>
+                            Data realtime
+                        </span>
 
-                    </thead>
+                    </div>
 
-                    <tbody id="forecastTable">
+                    <div class="chart-container">
+                        <canvas id="windChart"></canvas>
+                    </div>
 
-                    </tbody>
+                </div>
 
-                </table>
+
+                <div class="panel">
+
+                    <div class="panel-title">
+
+                        <h3>Arah Angin</h3>
+
+                        <span>
+                            Realtime
+                        </span>
+
+                    </div>
+
+                    <div class="compass-area">
+
+                        <div>
+
+                            <div class="compass">
+
+                                <div class="direction north">
+                                    U
+                                </div>
+
+                                <div class="direction east">
+                                    T
+                                </div>
+
+                                <div class="direction south">
+                                    S
+                                </div>
+
+                                <div class="direction west">
+                                    B
+                                </div>
+
+                                <div id="needle" class="needle"></div>
+
+                                <div class="compass-center"></div>
+
+                            </div>
+
+                            <div class="direction-value">
+
+                                <strong id="compassDirection">
+                                    -
+                                </strong>
+
+                                <p id="compassDegree">
+                                    0°
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
 
             </div>
 
-        </div>
 
+            <!-- ================= ENVIRONMENT ================= -->
 
-        <!-- ================= FORECAST CHART ================= -->
+            <div class="panel" style="margin-bottom:20px;">
 
-        <div class="panel"
-             style="box-shadow:none;border:1px solid #e2e8f0;">
+                <div class="panel-title">
+                    <h3>Kondisi Lingkungan</h3>
+                    <span>Sensor BME280</span>
+                </div>
 
-            <h2>Grafik Prediksi 7 Hari</h2>
+                <div class="environment-grid">
 
-            <div class="panel-subtitle">
-                Hasil prediksi LSTM
+                    <div class="environment-item">
+                        <span>Suhu Udara</span>
+                        <strong>
+                            <span id="envTemp">0.00</span> °C
+                        </strong>
+                    </div>
+
+                    <div class="environment-item">
+                        <span>Kelembapan Udara</span>
+                        <strong>
+                            <span id="envHumidity">0.00</span> %
+                        </strong>
+                    </div>
+
+                    <div class="environment-item">
+                        <span>Tekanan Udara</span>
+                        <strong>
+                            <span id="pressure">0.00</span> hPa
+                        </strong>
+                    </div>
+
+                </div>
+
             </div>
 
-            <div class="chart-container large">
 
-                <canvas id="lstmChart"></canvas>
+            <!-- ================= SEA LEVEL ================= -->
+
+            <div class="panel" style="margin-bottom:20px;">
+
+                <div class="panel-title">
+
+                    <h3>Ketinggian Permukaan Air</h3>
+
+                    <span>
+                        Sensor Ultrasonik
+                    </span>
+
+                </div>
+
+                <div class="cards" style="margin:0;">
+
+                    <div class="card">
+
+                        <div class="card-header">
+                            <div class="card-label">
+                                JARAK SENSOR
+                            </div>
+
+                            <div class="card-icon">
+                                📏
+                            </div>
+                        </div>
+
+                        <div>
+                            <span id="distance" class="card-value">0.00</span>
+                            <span class="card-unit">m</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="card">
+
+                        <div class="card-header">
+                            <div class="card-label">
+                                TINGGI MUKA AIR
+                            </div>
+
+                            <div class="card-icon">
+                                🌊
+                            </div>
+                        </div>
+
+                        <div>
+                            <span id="waterLevel" class="card-value">0.00</span>
+                            <span class="card-unit">m</span>
+                        </div>
+
+                    </div>
+
+                </div>
 
             </div>
 
-        </div>
+
+            <!-- ================= ENVIRONMENT CHART ================= -->
+
+            <div class="panel" style="margin-bottom:20px;">
+
+                <div class="panel-title">
+
+                    <h3>Grafik Kondisi Lingkungan</h3>
+
+                    <span>
+                        Data terakhir
+                    </span>
+
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="environmentChart"></canvas>
+                </div>
+
+            </div>
 
 
-        <div class="note">
+            <!-- ================= DATA TABLE ================= -->
 
-            Catatan: LSTM menggunakan data historis yang sudah
-            tersimpan di Firebase. Sistem tidak menunggu data
-            24 jam baru untuk melakukan pelatihan. Minimal
-            tersedia 7 hari data historis supaya pola waktu
-            dapat digunakan sebagai input model.
+            <div id="dataSection" class="panel">
+
+                <div class="panel-title">
+
+                    <h3>Data Sensor Terbaru</h3>
+
+                    <span id="lastUpdate">
+                        Belum ada data
+                    </span>
+
+                </div>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Arah Angin</th>
+                                <th>Kecepatan</th>
+                                <th>Suhu</th>
+                                <th>Kelembapan</th>
+                                <th>Tekanan</th>
+                                <th>Jarak</th>
+                                <th>Tinggi Air</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="dataTable">
+
+                            <tr>
+                                <td colspan="8" class="no-data">
+                                    Menunggu data Firebase...
+                                </td>
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ================= SETTINGS MODAL ================= -->
+
+    <div id="settingsModal" class="settings">
+
+        <div class="settings-box">
+
+            <h2>Pengaturan Sensor</h2>
+
+            <div class="form-group">
+
+                <label>
+                    Tinggi posisi sensor dari dasar/acuan (meter)
+                </label>
+
+                <input
+                    type="number"
+                    id="sensorHeightInput"
+                    value="2.50"
+                    step="0.01"
+                >
+
+            </div>
+
+            <div class="buttons">
+
+                <button
+                    class="btn-cancel"
+                    onclick="closeSettings()"
+                >
+                    Batal
+                </button>
+
+                <button
+                    class="btn-save"
+                    onclick="saveSettings()"
+                >
+                    Simpan
+                </button>
+
+            </div>
 
         </div>
 
     </div>
 
-</section>
-
-
-<!-- ========================================================= -->
-<!-- SETTINGS -->
-<!-- ========================================================= -->
-
-<section id="settings" class="page">
-
-    <div class="panel">
-
-        <h2>Pengaturan Sensor</h2>
-
-        <div class="panel-subtitle">
-            Pengaturan tinggi sensor untuk perhitungan tinggi muka air.
-        </div>
-
-        <div class="setting-row">
-
-            <input
-                type="number"
-                id="sensorHeightInput"
-                step="0.01"
-                min="0"
-                value="2.50"
-            >
-
-            <span>meter</span>
-
-            <button class="btn"
-                    onclick="saveSensorHeight()">
-
-                Simpan
-
-            </button>
-
-        </div>
-
-    </div>
-
-</section>
-
-</main>
-
-
-<!-- ========================================================= -->
-<!-- JAVASCRIPT -->
-<!-- ========================================================= -->
 
 <script>
 
-/* =========================================================
-   FIREBASE CONFIGURATION
-========================================================= */
+    /* =====================================================
+       FIREBASE CONFIGURATION
+       ===================================================== */
 
-const firebaseConfig = {
+    const firebaseConfig = {
 
-    apiKey:
-        "AIzaSyCt2pkO6xvYpDXFHNqbFWmlMmS2JLlSjA0",
+        apiKey:
+            "AIzaSyCt2pkO6xvYpDXFHNqbFWmlMmS2JLlSjA0",
 
-    authDomain:
-        "arah-angin-76f91.firebaseapp.com",
+        authDomain:
+            "arah-angin-76f91.firebaseapp.com",
 
-    databaseURL:
-        "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
+        databaseURL:
+            "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
 
-    projectId:
-        "arah-angin-76f91",
+        projectId:
+            "arah-angin-76f91",
 
-    storageBucket:
-        "arah-angin-76f91.firebasestorage.app",
+        storageBucket:
+            "arah-angin-76f91.firebasestorage.app",
 
-    messagingSenderId:
-        "937712967453",
+        messagingSenderId:
+            "937712967453",
 
-    appId:
-        "1:937712967453:web:36e81a289fe2a33b694bf4",
+        appId:
+            "1:937712967453:web:36e81a289fe2a33b694bf4",
 
-    measurementId:
-        "G-YKXYC252NV"
-
-};
-
-
-/* =========================================================
-   INITIALIZE FIREBASE
-========================================================= */
-
-firebase.initializeApp(firebaseConfig);
-
-const db = firebase.database();
-
-const historyRef =
-    db.ref("cuaca/history");
+        measurementId:
+            "G-YKXYC252NV"
+    };
 
 
-/* =========================================================
-   GLOBAL VARIABLES
-========================================================= */
+    /* =====================================================
+       INITIALIZE FIREBASE
+       ===================================================== */
 
-let historyData = [];
+    firebase.initializeApp(firebaseConfig);
 
-let dailyData = [];
-
-let forecastData = [];
-
-let sensorHeight =
-    parseFloat(
-        localStorage.getItem("sensorHeight")
-    ) || 2.50;
-
-let windChart = null;
-
-let environmentChart = null;
-
-let lstmChart = null;
+    const database = firebase.database();
 
 
-/* =========================================================
-   SETTINGS
-========================================================= */
+    /* =====================================================
+       GLOBAL VARIABLE
+       ===================================================== */
 
-document.getElementById(
-    "sensorHeightInput"
-).value = sensorHeight;
+    let historyData = [];
 
+    let latestData = null;
 
-/* =========================================================
-   NAVIGATION
-========================================================= */
-
-document.querySelectorAll(".menu-btn")
-.forEach(button => {
-
-    button.addEventListener("click", function(){
-
-        document
-            .querySelectorAll(".menu-btn")
-            .forEach(btn => btn.classList.remove("active"));
-
-        this.classList.add("active");
-
-        const page =
-            this.getAttribute("data-page");
-
-        document
-            .querySelectorAll(".page")
-            .forEach(section => {
-                section.classList.remove("active");
-            });
-
-        document
-            .getElementById(page)
-            .classList.add("active");
-
-    });
-
-});
+    let sensorHeight = 2.50;
 
 
-/* =========================================================
-   FIREBASE CONNECTION STATUS
-========================================================= */
+    /* =====================================================
+       LOAD SENSOR HEIGHT
+       ===================================================== */
 
-db.ref(".info/connected")
-.on("value", snapshot => {
+    const savedHeight =
+        localStorage.getItem("sensorHeight");
 
-    const status =
-        document.getElementById("firebaseStatus");
+    if (savedHeight !== null) {
 
-    if(snapshot.val() === true){
-
-        status.textContent =
-            "Firebase: terhubung";
-
-        status.classList.add("connected");
-
-    }else{
-
-        status.textContent =
-            "Firebase: terputus";
-
-        status.classList.remove("connected");
+        sensorHeight =
+            parseFloat(savedHeight);
 
     }
 
-});
 
+    /* =====================================================
+       DIRECTION
+       ===================================================== */
 
-/* =========================================================
-   PARSE NUMBER
-========================================================= */
+    const DIRECTION_DEG = {
 
-function numberValue(value){
+        "utara": 0,
 
-    if(value === null ||
-       value === undefined ||
-       value === ""){
+        "timur laut": 45,
 
-        return 0;
+        "timur": 90,
 
-    }
+        "tenggara": 135,
 
-    const n =
-        parseFloat(value);
+        "selatan": 180,
 
-    return Number.isFinite(n)
-        ? n
-        : 0;
+        "barat daya": 225,
 
-}
+        "barat": 270,
 
-
-/* =========================================================
-   GET TIMESTAMP
-========================================================= */
-
-function getRecordDate(record){
-
-    if(record.timestamp){
-
-        const d =
-            new Date(record.timestamp);
-
-        if(!isNaN(d.getTime())){
-            return d;
-        }
-
-    }
-
-    if(record.tanggal && record.waktu){
-
-        const d =
-            new Date(
-                record.tanggal +
-                " " +
-                record.waktu
-            );
-
-        if(!isNaN(d.getTime())){
-            return d;
-        }
-
-    }
-
-    if(record.tanggal){
-
-        const d =
-            new Date(record.tanggal);
-
-        if(!isNaN(d.getTime())){
-            return d;
-        }
-
-    }
-
-    return null;
-
-}
-
-
-/* =========================================================
-   LOCAL DATE KEY
-   Tidak menggunakan toISOString()
-   sehingga tanggal Indonesia tidak bergeser.
-========================================================= */
-
-function localDateKey(date){
-
-    if(!date) return "";
-
-    const year =
-        date.getFullYear();
-
-    const month =
-        String(
-            date.getMonth() + 1
-        ).padStart(2,"0");
-
-    const day =
-        String(
-            date.getDate()
-        ).padStart(2,"0");
-
-    return `${year}-${month}-${day}`;
-
-}
-
-
-/* =========================================================
-   FORMAT DATE
-========================================================= */
-
-function formatDate(date){
-
-    if(!date) return "-";
-
-    return date.toLocaleDateString(
-        "id-ID",
-        {
-            day:"2-digit",
-            month:"2-digit",
-            year:"numeric"
-        }
-    );
-
-}
-
-
-/* =========================================================
-   FORMAT TIME
-========================================================= */
-
-function formatTime(date){
-
-    if(!date) return "-";
-
-    return date.toLocaleTimeString(
-        "id-ID",
-        {
-            hour:"2-digit",
-            minute:"2-digit",
-            second:"2-digit"
-        }
-    );
-
-}
-
-
-/* =========================================================
-   DIRECTION NAME
-========================================================= */
-
-function getDirectionName(degree){
-
-    let d =
-        ((numberValue(degree) % 360) + 360) % 360;
-
-    if(d >= 337.5 || d < 22.5)
-        return "Utara";
-
-    if(d < 67.5)
-        return "Timur Laut";
-
-    if(d < 112.5)
-        return "Timur";
-
-    if(d < 157.5)
-        return "Tenggara";
-
-    if(d < 202.5)
-        return "Selatan";
-
-    if(d < 247.5)
-        return "Barat Daya";
-
-    if(d < 292.5)
-        return "Barat";
-
-    return "Barat Laut";
-
-}
-
-
-/* =========================================================
-   READ HISTORY SNAPSHOT
-========================================================= */
-
-function readHistorySnapshot(snapshot){
-
-    const records = [];
-
-    snapshot.forEach(childSnapshot => {
-
-        const value =
-            childSnapshot.val();
-
-        if(
-            value &&
-            typeof value === "object"
-        ){
-
-            records.push({
-
-                ...value,
-
-                _firebaseKey:
-                    childSnapshot.key
-
-            });
-
-        }
-
-    });
-
-    return records;
-
-}
-
-
-/* =========================================================
-   FIREBASE REALTIME HISTORY
-========================================================= */
-
-historyRef.on("value", snapshot => {
-
-    historyData =
-        readHistorySnapshot(snapshot);
-
-    historyData =
-        historyData.filter(
-            item => getRecordDate(item)
-        );
-
-    historyData.sort(
-        (a,b) =>
-            getRecordDate(b) -
-            getRecordDate(a)
-    );
-
-
-    document.getElementById(
-        "totalData"
-    ).textContent =
-        historyData.length;
-
-
-    document.getElementById(
-        "lstmTotalData"
-    ).textContent =
-        historyData.length;
-
-
-    updateRealtime();
-
-    updateHistoryTable();
-
-    updateWindChart();
-
-    updateEnvironmentChart();
-
-    updateDailyLSTMData();
-
-});
-
-
-/* =========================================================
-   UPDATE REALTIME
-========================================================= */
-
-function updateRealtime(){
-
-    if(historyData.length === 0){
-        return;
-    }
-
-    const latest =
-        historyData[0];
-
-
-    /* WIND */
-
-    const windSpeed =
-        numberValue(
-            latest.kecepatan_ms ??
-            latest.kecepatan
-        );
-
-
-    const direction =
-        numberValue(
-            latest.arah_angin ??
-            latest.arah
-        );
-
-
-    document.getElementById(
-        "windSpeed"
-    ).textContent =
-        windSpeed.toFixed(2);
-
-
-    document.getElementById(
-        "windDirection"
-    ).textContent =
-        getDirectionName(direction);
-
-
-    document.getElementById(
-        "windDegree"
-    ).textContent =
-        direction.toFixed(0) + "°";
-
-
-    document.getElementById(
-        "compassDegree"
-    ).textContent =
-        direction.toFixed(0) + "°";
-
-
-    document.getElementById(
-        "needle"
-    ).style.transform =
-        `translate(-50%,-90%) rotate(${direction}deg)`;
-
-
-    /* TEMPERATURE */
-
-    document.getElementById(
-        "temperature"
-    ).textContent =
-        numberValue(
-            latest.suhu
-        ).toFixed(2);
-
-
-    /* HUMIDITY */
-
-    document.getElementById(
-        "humidity"
-    ).textContent =
-        numberValue(
-            latest.kelembapan
-        ).toFixed(2);
-
-
-    /* DISTANCE */
-
-    const distance =
-        getDistance(latest);
-
-
-    document.getElementById(
-        "distance"
-    ).textContent =
-        distance.toFixed(2) +
-        " m";
-
-
-    /* WATER LEVEL */
-
-    const waterLevel =
-        Math.max(
-            0,
-            sensorHeight - distance
-        );
-
-
-    document.getElementById(
-        "waterLevel"
-    ).textContent =
-        waterLevel.toFixed(2) +
-        " m";
-
-}
-
-
-/* =========================================================
-   GET DISTANCE
-========================================================= */
-
-function getDistance(record){
-
-    if(record.jarak_meter !== undefined){
-
-        return numberValue(
-            record.jarak_meter
-        );
-
-    }
-
-    if(record.jarak_cm !== undefined){
-
-        return numberValue(
-            record.jarak_cm
-        ) / 100;
-
-    }
-
-    if(record.jarak !== undefined){
-
-        const value =
-            numberValue(record.jarak);
-
-        /*
-         Jika nilai besar diasumsikan cm.
-        */
-
-        if(value > 10){
-
-            return value / 100;
-
-        }
-
-        return value;
-
-    }
-
-    return 0;
-
-}
-
-
-/* =========================================================
-   HISTORY TABLE
-========================================================= */
-
-function updateHistoryTable(){
-
-    const tbody =
-        document.getElementById(
-            "historyTable"
-        );
-
-    tbody.innerHTML = "";
-
-    const rows =
-        historyData.slice(0,15);
-
-
-    rows.forEach((record,index) => {
-
-        const date =
-            getRecordDate(record);
-
-        const direction =
-            numberValue(
-                record.arah_angin ??
-                record.arah
-            );
-
-        const speed =
-            numberValue(
-                record.kecepatan_ms ??
-                record.kecepatan
-            );
-
-        const temperature =
-            numberValue(record.suhu);
-
-        const humidity =
-            numberValue(record.kelembapan);
-
-        const pressure =
-            numberValue(record.tekanan);
-
-        const distance =
-            getDistance(record);
-
-        const waterLevel =
-            Math.max(
-                0,
-                sensorHeight - distance
-            );
-
-
-        const row =
-            document.createElement("tr");
-
-
-        row.innerHTML = `
-
-            <td>${index + 1}</td>
-
-            <td>${formatDate(date)}</td>
-
-            <td>${formatTime(date)}</td>
-
-            <td>
-                ${getDirectionName(direction)}
-                (${direction.toFixed(0)}°)
-            </td>
-
-            <td>
-                ${speed.toFixed(2)} m/s
-            </td>
-
-            <td>
-                ${temperature.toFixed(2)} °C
-            </td>
-
-            <td>
-                ${humidity.toFixed(2)} %
-            </td>
-
-            <td>
-                ${pressure.toFixed(2)} hPa
-            </td>
-
-            <td>
-                ${distance.toFixed(2)} m
-            </td>
-
-            <td>
-                ${waterLevel.toFixed(2)} m
-            </td>
-
-        `;
-
-        tbody.appendChild(row);
-
-    });
-
-}
-
-
-/* =========================================================
-   WIND CHART
-========================================================= */
-
-function updateWindChart(){
-
-    const data =
-        historyData
-        .slice(0,100)
-        .reverse();
-
-
-    const labels =
-        data.map(
-            record => {
-
-                const d =
-                    getRecordDate(record);
-
-                return d
-                    ? d.toLocaleTimeString(
-                        "id-ID",
-                        {
-                            hour:"2-digit",
-                            minute:"2-digit"
-                        }
-                    )
-                    : "";
-
-            }
-        );
-
-
-    const values =
-        data.map(
-            record =>
-                numberValue(
-                    record.kecepatan_ms ??
-                    record.kecepatan
-                )
-        );
-
-
-    if(windChart){
-        windChart.destroy();
-    }
-
-
-    windChart =
-        new Chart(
-            document.getElementById(
-                "windChart"
-            ),
-            {
-
-                type:"line",
-
-                data:{
-
-                    labels:labels,
-
-                    datasets:[{
-
-                        label:
-                            "Kecepatan Angin (m/s)",
-
-                        data:values,
-
-                        borderWidth:2,
-
-                        tension:.3,
-
-                        fill:false
-
-                    }]
-
-                },
-
-                options:{
-
-                    responsive:true,
-
-                    maintainAspectRatio:false,
-
-                    interaction:{
-                        intersect:false,
-                        mode:"index"
-                    },
-
-                    scales:{
-
-                        y:{
-                            beginAtZero:true
-                        }
-
-                    }
-
-                }
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   ENVIRONMENT CHART
-========================================================= */
-
-function updateEnvironmentChart(){
-
-    const data =
-        historyData
-        .slice(0,100)
-        .reverse();
-
-
-    const labels =
-        data.map(record => {
-
-            const d =
-                getRecordDate(record);
-
-            return d
-                ? d.toLocaleTimeString(
-                    "id-ID",
-                    {
-                        hour:"2-digit",
-                        minute:"2-digit"
-                    }
-                )
-                : "";
-
-        });
-
-
-    const temperature =
-        data.map(
-            record =>
-                numberValue(record.suhu)
-        );
-
-
-    const humidity =
-        data.map(
-            record =>
-                numberValue(record.kelembapan)
-        );
-
-
-    const pressure =
-        data.map(
-            record =>
-                numberValue(record.tekanan)
-        );
-
-
-    if(environmentChart){
-        environmentChart.destroy();
-    }
-
-
-    /*
-       Grafik lingkungan tetap dibuat
-       sebagai grafik lingkungan terpisah.
-       LSTM tidak mengubah grafik ini.
-    */
-
-    environmentChart =
-        new Chart(
-            document.getElementById(
-                "environmentChart"
-            ),
-            {
-
-                type:"line",
-
-                data:{
-
-                    labels:labels,
-
-                    datasets:[
-
-                        {
-
-                            label:
-                                "Suhu (°C)",
-
-                            data:
-                                temperature,
-
-                            borderWidth:2,
-
-                            tension:.3,
-
-                            fill:false,
-
-                            yAxisID:"y"
-
-                        },
-
-                        {
-
-                            label:
-                                "Kelembaban (%)",
-
-                            data:
-                                humidity,
-
-                            borderWidth:2,
-
-                            tension:.3,
-
-                            fill:false,
-
-                            yAxisID:"y1"
-
-                        },
-
-                        {
-
-                            label:
-                                "Tekanan (hPa)",
-
-                            data:
-                                pressure,
-
-                            borderWidth:2,
-
-                            tension:.3,
-
-                            fill:false,
-
-                            yAxisID:"y2"
-
-                        }
-
-                    ]
-
-                },
-
-                options:{
-
-                    responsive:true,
-
-                    maintainAspectRatio:false,
-
-                    interaction:{
-                        intersect:false,
-                        mode:"index"
-                    },
-
-                    scales:{
-
-                        y:{
-                            type:"linear",
-                            position:"left",
-                            title:{
-                                display:true,
-                                text:"Suhu (°C)"
-                            }
-                        },
-
-                        y1:{
-                            type:"linear",
-                            position:"right",
-                            title:{
-                                display:true,
-                                text:"Kelembaban (%)"
-                            },
-
-                            grid:{
-                                drawOnChartArea:false
-                            }
-                        },
-
-                        y2:{
-                            type:"linear",
-                            position:"right",
-                            title:{
-                                display:true,
-                                text:"Tekanan (hPa)"
-                            },
-
-                            grid:{
-                                drawOnChartArea:false
-                            }
-                        }
-
-                    }
-
-                }
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   GROUP DATA BY LOCAL DATE
-========================================================= */
-
-function buildDailyData(){
-
-    const groups = {};
-
-
-    historyData.forEach(record => {
-
-        const date =
-            getRecordDate(record);
-
-        if(!date){
-            return;
-        }
-
-
-        const key =
-            localDateKey(date);
-
-
-        if(!groups[key]){
-
-            groups[key] = {
-
-                date:key,
-
-                wind:[],
-
-                temperature:[],
-
-                humidity:[],
-
-                pressure:[],
-
-                water:[]
-
-            };
-
-        }
-
-
-        groups[key].wind.push(
-            numberValue(
-                record.kecepatan_ms ??
-                record.kecepatan
-            )
-        );
-
-
-        groups[key].temperature.push(
-            numberValue(record.suhu)
-        );
-
-
-        groups[key].humidity.push(
-            numberValue(record.kelembapan)
-        );
-
-
-        groups[key].pressure.push(
-            numberValue(record.tekanan)
-        );
-
-
-        const distance =
-            getDistance(record);
-
-
-        const water =
-            Math.max(
-                0,
-                sensorHeight - distance
-            );
-
-
-        groups[key].water.push(water);
-
-    });
-
-
-    const result =
-        Object.values(groups);
-
-
-    result.forEach(day => {
-
-        day.wind =
-            average(day.wind);
-
-        day.temperature =
-            average(day.temperature);
-
-        day.humidity =
-            average(day.humidity);
-
-        day.pressure =
-            average(day.pressure);
-
-        day.water =
-            average(day.water);
-
-    });
-
-
-    result.sort(
-        (a,b) =>
-            new Date(a.date) -
-            new Date(b.date)
-    );
-
-
-    return result;
-
-}
-
-
-/* =========================================================
-   AVERAGE
-========================================================= */
-
-function average(values){
-
-    if(!values.length){
-        return 0;
-    }
-
-    return values.reduce(
-        (sum,value) =>
-            sum + numberValue(value),
-        0
-    ) / values.length;
-
-}
-
-
-/* =========================================================
-   UPDATE DAILY LSTM DATA
-========================================================= */
-
-function updateDailyLSTMData(){
-
-    dailyData =
-        buildDailyData();
-
-
-    document.getElementById(
-        "lstmTotalDays"
-    ).textContent =
-        dailyData.length;
-
-
-    const tbody =
-        document.getElementById(
-            "lstmDataTable"
-        );
-
-    tbody.innerHTML = "";
-
-
-    dailyData.forEach(day => {
-
-        const row =
-            document.createElement("tr");
-
-
-        row.innerHTML = `
-
-            <td>${formatDailyDate(day.date)}</td>
-
-            <td>${day.wind.toFixed(3)}</td>
-
-            <td>${day.temperature.toFixed(2)}</td>
-
-            <td>${day.humidity.toFixed(2)}</td>
-
-            <td>${day.pressure.toFixed(2)}</td>
-
-            <td>${day.water.toFixed(3)}</td>
-
-        `;
-
-
-        tbody.appendChild(row);
-
-    });
-
-}
-
-
-/* =========================================================
-   FORMAT DAILY DATE
-========================================================= */
-
-function formatDailyDate(dateString){
-
-    const parts =
-        dateString.split("-");
-
-    if(parts.length !== 3){
-        return dateString;
-    }
-
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-
-}
-
-
-/* =========================================================
-   NORMALIZE
-========================================================= */
-
-function normalize(values){
-
-    const min =
-        Math.min(...values);
-
-    const max =
-        Math.max(...values);
-
-
-    if(max === min){
-
-        return {
-            values:
-                values.map(() => 0.5),
-            min,
-            max
-        };
-
-    }
-
-
-    return {
-
-        values:
-            values.map(
-                value =>
-                    (value - min) /
-                    (max - min)
-            ),
-
-        min,
-        max
+        "barat laut": 315
 
     };
 
-}
 
+    /* =====================================================
+       HELPER
+       ===================================================== */
 
-/* =========================================================
-   DENORMALIZE
-========================================================= */
+    function numberValue(value) {
 
-function denormalize(
-    value,
-    min,
-    max
-){
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return 0;
+        }
 
-    if(max === min){
-        return min;
-    }
+        const number =
+            parseFloat(value);
 
-    return (
-        value * (max - min)
-    ) + min;
-
-}
-
-
-/* =========================================================
-   ADD DAYS
-========================================================= */
-
-function addDays(dateString,days){
-
-    const parts =
-        dateString.split("-")
-        .map(Number);
-
-
-    const date =
-        new Date(
-            parts[0],
-            parts[1] - 1,
-            parts[2]
-        );
-
-
-    date.setDate(
-        date.getDate() + days
-    );
-
-
-    return localDateKey(date);
-
-}
-
-
-/* =========================================================
-   TRAIN SINGLE LSTM MODEL
-========================================================= */
-
-async function trainVariable(
-    values,
-    windowSize = 7
-){
-
-    /*
-       Jumlah data yang diperlukan:
-
-       windowSize + 1
-
-       Contoh:
-
-       window 7
-       minimal 8 data harian.
-    */
-
-    if(values.length < windowSize + 1){
-
-        return null;
-
+        return isNaN(number)
+            ? 0
+            : number;
     }
 
 
-    const normalized =
-        normalize(values);
+    function getDirectionDegree(direction) {
 
+        if (!direction) {
+            return 0;
+        }
 
-    const scaled =
-        normalized.values;
+        const text =
+            String(direction)
+                .toLowerCase()
+                .trim();
 
+        if (
+            DIRECTION_DEG[text] !== undefined
+        ) {
 
-    const xs = [];
-
-    const ys = [];
-
-
-    for(
-        let i = 0;
-        i <= scaled.length - windowSize - 1;
-        i++
-    ){
-
-        xs.push(
-            scaled.slice(
-                i,
-                i + windowSize
-            )
-        );
-
-
-        ys.push(
-            scaled[
-                i + windowSize
-            ]
-        );
-
-    }
-
-
-    const xTensor =
-        tf.tensor3d(
-            xs.map(
-                sequence =>
-                    sequence.map(
-                        value => [value]
-                    )
-            )
-        );
-
-
-    const yTensor =
-        tf.tensor2d(
-            ys.map(value => [value])
-        );
-
-
-    const model =
-        tf.sequential();
-
-
-    model.add(
-        tf.layers.lstm({
-
-            units:32,
-
-            inputShape:[
-                windowSize,
-                1
-            ]
-
-        })
-    );
-
-
-    model.add(
-        tf.layers.dense({
-            units:16,
-            activation:"relu"
-        })
-    );
-
-
-    model.add(
-        tf.layers.dense({
-            units:1
-        })
-    );
-
-
-    model.compile({
-
-        optimizer:
-            tf.train.adam(0.01),
-
-        loss:"meanSquaredError"
-
-    });
-
-
-    await model.fit(
-        xTensor,
-        yTensor,
-        {
-
-            epochs:60,
-
-            batchSize:
-                Math.min(
-                    8,
-                    xs.length
-                ),
-
-            shuffle:false,
-
-            verbose:0
+            return DIRECTION_DEG[text];
 
         }
-    );
+
+        const degree =
+            parseFloat(text);
+
+        if (!isNaN(degree)) {
+
+            return degree;
+
+        }
+
+        return 0;
+    }
 
 
-    /*
-       Recursive prediction
-       untuk 7 hari ke depan.
-    */
+    function getTimestamp(data) {
 
-    let sequence =
-        scaled.slice(
-            scaled.length - windowSize
+        if (!data) {
+            return 0;
+        }
+
+        if (data.timestamp) {
+
+            if (
+                typeof data.timestamp === "number"
+            ) {
+                return data.timestamp;
+            }
+
+            const parsed =
+                Date.parse(data.timestamp);
+
+            if (!isNaN(parsed)) {
+                return parsed;
+            }
+
+        }
+
+        if (
+            data.tanggal &&
+            data.waktu
+        ) {
+
+            const parsed =
+                Date.parse(
+                    data.tanggal +
+                    " " +
+                    data.waktu
+                );
+
+            if (!isNaN(parsed)) {
+                return parsed;
+            }
+
+        }
+
+        return 0;
+    }
+
+
+    function formatTime(timestamp) {
+
+        if (!timestamp) {
+            return "-";
+        }
+
+        const date =
+            new Date(timestamp);
+
+        return date.toLocaleString(
+            "id-ID",
+            {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }
         );
-
-
-    const predictions = [];
-
-
-    for(
-        let i = 0;
-        i < 7;
-        i++
-    ){
-
-        const input =
-            tf.tensor3d([
-                sequence.map(
-                    value => [value]
-                )
-            ]);
-
-
-        const prediction =
-            model.predict(input);
-
-
-        const value =
-            (
-                await prediction
-                .data()
-            )[0];
-
-
-        predictions.push(
-            denormalize(
-                value,
-                normalized.min,
-                normalized.max
-            )
-        );
-
-
-        sequence =
-            sequence
-            .slice(1)
-            .concat(value);
-
-
-        input.dispose();
-        prediction.dispose();
 
     }
 
 
-    xTensor.dispose();
-    yTensor.dispose();
+    function getDistance(data) {
 
-    model.dispose();
+        if (!data) {
+            return 0;
+        }
+
+        if (
+            data.jarak_meter !== undefined
+        ) {
+
+            return numberValue(
+                data.jarak_meter
+            );
+
+        }
+
+        if (
+            data.jarak_cm !== undefined
+        ) {
+
+            return (
+                numberValue(
+                    data.jarak_cm
+                ) / 100
+            );
+
+        }
+
+        return 0;
+    }
 
 
-    return predictions;
+    function getWaterLevel(data) {
 
-}
+        const distance =
+            getDistance(data);
 
+        const level =
+            sensorHeight - distance;
 
-/* =========================================================
-   TRAIN LSTM
-========================================================= */
-
-async function trainLSTM(){
-
-    if(
-        typeof tf === "undefined"
-    ){
-
-        alert(
-            "TensorFlow.js belum berhasil dimuat."
+        return Math.max(
+            0,
+            level
         );
-
-        return;
 
     }
 
 
-    dailyData =
-        buildDailyData();
+    /* =====================================================
+       UPDATE DASHBOARD
+       ===================================================== */
+
+    function updateDashboard(data) {
+
+        if (!data) {
+            return;
+        }
+
+        latestData = data;
 
 
-    /*
-       Minimal 8 hari.
+        /* KECEPATAN */
 
-       Dengan window 7:
-       7 hari = input
-       1 hari = target
-    */
+        const speedMs =
+            numberValue(
+                data.kecepatan_ms
+            );
 
-    const windowSize = 7;
+        const speedKmh =
+            numberValue(
+                data.kecepatan_kmh
+            );
 
-
-    if(
-        dailyData.length <
-        windowSize + 1
-    ){
 
         document.getElementById(
-            "lstmStatus"
+            "windSpeed"
         ).textContent =
-            `Data belum cukup. Saat ini tersedia ${dailyData.length} hari. Minimal diperlukan ${windowSize + 1} hari data harian untuk melatih LSTM.`;
+            speedMs.toFixed(2);
 
-        return;
+
+        document.getElementById(
+            "windSpeedKmh"
+        ).textContent =
+            speedKmh.toFixed(2) +
+            " km/h";
+
+
+        /* ARAH */
+
+        const direction =
+            data.arah_angin ||
+            data.arah ||
+            "-";
+
+        const degree =
+            getDirectionDegree(
+                direction
+            );
+
+
+        document.getElementById(
+            "windDirection"
+        ).textContent =
+            direction;
+
+
+        document.getElementById(
+            "windDegree"
+        ).textContent =
+            degree.toFixed(0) +
+            "°";
+
+
+        document.getElementById(
+            "compassDirection"
+        ).textContent =
+            direction;
+
+
+        document.getElementById(
+            "compassDegree"
+        ).textContent =
+            degree.toFixed(0) +
+            "°";
+
+
+        /* COMPASS */
+
+        document.getElementById(
+            "needle"
+        ).style.transform =
+            "translate(-50%, -100%) rotate(" +
+            degree +
+            "deg)";
+
+
+        /* SUHU */
+
+        const temperature =
+            numberValue(
+                data.suhu
+            );
+
+
+        document.getElementById(
+            "temperature"
+        ).textContent =
+            temperature.toFixed(2);
+
+
+        document.getElementById(
+            "envTemp"
+        ).textContent =
+            temperature.toFixed(2);
+
+
+        /* KELEMBAPAN */
+
+        const humidity =
+            numberValue(
+                data.kelembapan
+            );
+
+
+        document.getElementById(
+            "humidity"
+        ).textContent =
+            humidity.toFixed(2);
+
+
+        document.getElementById(
+            "envHumidity"
+        ).textContent =
+            humidity.toFixed(2);
+
+
+        /* TEKANAN */
+
+        const pressure =
+            numberValue(
+                data.tekanan
+            );
+
+
+        document.getElementById(
+            "pressure"
+        ).textContent =
+            pressure.toFixed(2);
+
+
+        /* JARAK */
+
+        const distance =
+            getDistance(data);
+
+
+        document.getElementById(
+            "distance"
+        ).textContent =
+            distance.toFixed(2);
+
+
+        /* TINGGI AIR */
+
+        const waterLevel =
+            getWaterLevel(data);
+
+
+        document.getElementById(
+            "waterLevel"
+        ).textContent =
+            waterLevel.toFixed(2);
+
+
+        /* WAKTU */
+
+        const timestamp =
+            getTimestamp(data);
+
+
+        document.getElementById(
+            "lastUpdate"
+        ).textContent =
+            timestamp
+                ? "Update: " +
+                  formatTime(timestamp)
+                : "Data realtime";
 
     }
 
 
-    const button =
-        document.getElementById(
-            "trainButton"
+    /* =====================================================
+       FIREBASE CONNECTION STATUS
+       ===================================================== */
+
+    database.ref(".info/connected")
+        .on(
+            "value",
+            function(snapshot) {
+
+                const connected =
+                    snapshot.val() === true;
+
+
+                const dot =
+                    document.getElementById(
+                        "statusDot"
+                    );
+
+                const topDot =
+                    document.getElementById(
+                        "topStatusDot"
+                    );
+
+                const text =
+                    document.getElementById(
+                        "connectionText"
+                    );
+
+                const topText =
+                    document.getElementById(
+                        "topStatus"
+                    );
+
+
+                if (connected) {
+
+                    dot.classList.add(
+                        "connected"
+                    );
+
+                    topDot.classList.add(
+                        "connected"
+                    );
+
+                    text.textContent =
+                        "Firebase Connected";
+
+                    topText.textContent =
+                        "Online";
+
+                } else {
+
+                    dot.classList.remove(
+                        "connected"
+                    );
+
+                    topDot.classList.remove(
+                        "connected"
+                    );
+
+                    text.textContent =
+                        "Firebase Offline";
+
+                    topText.textContent =
+                        "Offline";
+
+                }
+
+            }
         );
 
 
-    button.disabled = true;
+    /* =====================================================
+       FIREBASE LATEST DATA
+       ===================================================== */
 
-    button.textContent =
-        "Sedang melatih...";
+    database.ref("cuaca")
+        .on(
+            "value",
+            function(snapshot) {
 
+                const data =
+                    snapshot.val();
 
-    document.getElementById(
-        "lstmStatus"
-    ).textContent =
-        "LSTM sedang mempelajari data historis yang sudah tersedia. Mohon tunggu...";
-
-
-    try{
-
-        /*
-           Ambil masing-masing variabel.
-        */
-
-        const windValues =
-            dailyData.map(
-                d => d.wind
-            );
+                if (!data) {
+                    return;
+                }
 
 
-        const temperatureValues =
-            dailyData.map(
-                d => d.temperature
-            );
+                /*
+                 Jika cuaca langsung berisi data sensor
+                */
+
+                if (
+                    data.kecepatan_ms !== undefined ||
+                    data.arah_angin !== undefined ||
+                    data.suhu !== undefined ||
+                    data.kelembapan !== undefined
+                ) {
+
+                    updateDashboard(data);
+
+                }
+
+            },
+            function(error) {
+
+                console.error(
+                    "Firebase error:",
+                    error
+                );
+
+            }
+        );
 
 
-        const humidityValues =
-            dailyData.map(
-                d => d.humidity
-            );
+    /* =====================================================
+       FIREBASE HISTORY
+       ===================================================== */
+
+    database.ref("cuaca/history")
+        .on(
+            "value",
+            function(snapshot) {
+
+                const data =
+                    snapshot.val();
+
+                if (!data) {
+
+                    historyData = [];
+
+                    updateCharts();
+
+                    updateTable();
+
+                    return;
+                }
 
 
-        const pressureValues =
-            dailyData.map(
-                d => d.pressure
-            );
+                let records = [];
 
 
-        const waterValues =
-            dailyData.map(
-                d => d.water
-            );
+                /*
+                 Jika Firebase berbentuk object
+                 */
+
+                if (
+                    typeof data === "object" &&
+                    !Array.isArray(data)
+                ) {
+
+                    records =
+                        Object.values(data);
+
+                } else if (
+                    Array.isArray(data)
+                ) {
+
+                    records = data;
+
+                }
 
 
-        /*
-           Latih masing-masing model.
-        */
-
-        const windPrediction =
-            await trainVariable(
-                windValues,
-                windowSize
-            );
-
-
-        const temperaturePrediction =
-            await trainVariable(
-                temperatureValues,
-                windowSize
-            );
-
-
-        const humidityPrediction =
-            await trainVariable(
-                humidityValues,
-                windowSize
-            );
-
-
-        const pressurePrediction =
-            await trainVariable(
-                pressureValues,
-                windowSize
-            );
-
-
-        const waterPrediction =
-            await trainVariable(
-                waterValues,
-                windowSize
-            );
-
-
-        /*
-           Tanggal terakhir.
-        */
-
-        const lastDate =
-            dailyData[
-                dailyData.length - 1
-            ].date;
-
-
-        forecastData = [];
-
-
-        for(
-            let i = 0;
-            i < 7;
-            i++
-        ){
-
-            forecastData.push({
-
-                day:
-                    i + 1,
-
-                date:
-                    addDays(
-                        lastDate,
-                        i + 1
-                    ),
-
-                wind:
-                    Math.max(
-                        0,
-                        windPrediction[i]
-                    ),
-
-                temperature:
-                    temperaturePrediction[i],
-
-                humidity:
-                    Math.max(
-                        0,
-                        Math.min(
-                            100,
-                            humidityPrediction[i]
+                historyData =
+                    records
+                        .filter(
+                            item =>
+                                item &&
+                                typeof item === "object"
                         )
-                    ),
+                        .sort(
+                            function(a, b) {
 
-                pressure:
-                    pressurePrediction[i],
+                                return (
+                                    getTimestamp(a) -
+                                    getTimestamp(b)
+                                );
 
-                water:
-                    Math.max(
-                        0,
-                        waterPrediction[i]
-                    )
-
-            });
-
-        }
+                            }
+                        );
 
 
-        updateForecastTable();
+                if (
+                    historyData.length > 0
+                ) {
 
-        updateLSTMChart();
+                    updateDashboard(
+                        historyData[
+                            historyData.length - 1
+                        ]
+                    );
 
-
-        document.getElementById(
-            "lstmStatus"
-        ).textContent =
-            `LSTM berhasil dilatih menggunakan ${dailyData.length} hari data historis dari Firebase. Prediksi dibuat untuk 7 hari setelah data terakhir.`;
-
-    }
-
-    catch(error){
-
-        console.error(error);
+                }
 
 
-        document.getElementById(
-            "lstmStatus"
-        ).textContent =
-            "Terjadi kesalahan ketika melatih LSTM. Periksa Console browser untuk melihat detail error.";
+                updateCharts();
 
-    }
+                updateTable();
 
+            },
+            function(error) {
 
-    button.disabled = false;
+                console.error(
+                    "History error:",
+                    error
+                );
 
-    button.textContent =
-        "Latih LSTM";
-
-}
-
-
-/* =========================================================
-   UPDATE FORECAST TABLE
-========================================================= */
-
-function updateForecastTable(){
-
-    const tbody =
-        document.getElementById(
-            "forecastTable"
-        );
-
-    tbody.innerHTML = "";
-
-
-    forecastData.forEach(item => {
-
-        const row =
-            document.createElement("tr");
-
-
-        row.innerHTML = `
-
-            <td>
-                Hari ${item.day}
-            </td>
-
-            <td>
-                ${formatDailyDate(item.date)}
-            </td>
-
-            <td class="prediction-positive">
-                ${item.wind.toFixed(3)}
-            </td>
-
-            <td class="prediction-positive">
-                ${item.temperature.toFixed(2)}
-            </td>
-
-            <td class="prediction-positive">
-                ${item.humidity.toFixed(2)}
-            </td>
-
-            <td class="prediction-positive">
-                ${item.pressure.toFixed(2)}
-            </td>
-
-            <td class="prediction-positive">
-                ${item.water.toFixed(3)}
-            </td>
-
-        `;
-
-
-        tbody.appendChild(row);
-
-    });
-
-}
-
-
-/* =========================================================
-   LSTM CHART
-========================================================= */
-
-function updateLSTMChart(){
-
-    const labels =
-        forecastData.map(
-            item =>
-                formatDailyDate(
-                    item.date
-                )
+            }
         );
 
 
-    if(lstmChart){
+    /* =====================================================
+       WIND CHART
+       ===================================================== */
 
-        lstmChart.destroy();
+    const windCtx =
+        document
+            .getElementById(
+                "windChart"
+            )
+            .getContext("2d");
 
-    }
 
-
-    lstmChart =
+    const windChart =
         new Chart(
-            document.getElementById(
-                "lstmChart"
-            ),
+            windCtx,
             {
 
-                type:"line",
+                type: "line",
 
-                data:{
+                data: {
 
-                    labels:labels,
+                    labels: [],
 
-                    datasets:[
-
-                        {
-
-                            label:
-                                "Angin (m/s)",
-
-                            data:
-                                forecastData.map(
-                                    d => d.wind
-                                ),
-
-                            borderWidth:2,
-
-                            tension:.3,
-
-                            fill:false
-
-                        },
+                    datasets: [
 
                         {
 
                             label:
-                                "Suhu (°C)",
+                                "Kecepatan Angin (m/s)",
 
-                            data:
-                                forecastData.map(
-                                    d => d.temperature
-                                ),
+                            data: [],
 
-                            borderWidth:2,
+                            borderWidth: 2,
 
-                            tension:.3,
+                            tension: 0.35,
 
-                            fill:false
+                            fill: false,
 
-                        },
-
-                        {
-
-                            label:
-                                "Kelembaban (%)",
-
-                            data:
-                                forecastData.map(
-                                    d => d.humidity
-                                ),
-
-                            borderWidth:2,
-
-                            tension:.3,
-
-                            fill:false
-
-                        },
-
-                        {
-
-                            label:
-                                "Tekanan (hPa)",
-
-                            data:
-                                forecastData.map(
-                                    d => d.pressure
-                                ),
-
-                            borderWidth:2,
-
-                            tension:.3,
-
-                            fill:false
-
-                        },
-
-                        {
-
-                            label:
-                                "Tinggi Air (m)",
-
-                            data:
-                                forecastData.map(
-                                    d => d.water
-                                ),
-
-                            borderWidth:2,
-
-                            tension:.3,
-
-                            fill:false
+                            pointRadius: 2
 
                         }
 
@@ -3062,21 +1775,48 @@ function updateLSTMChart(){
 
                 },
 
-                options:{
+                options: {
 
-                    responsive:true,
+                    responsive: true,
 
-                    maintainAspectRatio:false,
+                    maintainAspectRatio: false,
 
-                    interaction:{
-                        intersect:false,
-                        mode:"index"
+                    interaction: {
+
+                        intersect: false,
+
+                        mode: "index"
+
                     },
 
-                    scales:{
+                    scales: {
 
-                        y:{
-                            beginAtZero:false
+                        y: {
+
+                            beginAtZero: true,
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    "m/s"
+
+                            }
+
+                        },
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    "Waktu"
+
+                            }
+
                         }
 
                     }
@@ -3086,505 +1826,509 @@ function updateLSTMChart(){
             }
         );
 
-}
 
-
-/* =========================================================
-   SAVE SENSOR HEIGHT
-========================================================= */
-
-function saveSensorHeight(){
-
-    const value =
-        parseFloat(
-            document.getElementById(
-                "sensorHeightInput"
-            ).value
-        );
-
-
-    if(
-        !Number.isFinite(value) ||
-        value < 0
-    ){
-
-        alert(
-            "Nilai tinggi sensor tidak valid."
-        );
-
-        return;
-
-    }
-
-
-    sensorHeight = value;
-
-
-    localStorage.setItem(
-        "sensorHeight",
-        sensorHeight
-    );
-
-
-    updateRealtime();
-
-    updateHistoryTable();
-
-    updateDailyLSTMData();
-
-
-    alert(
-        "Tinggi sensor berhasil disimpan."
-    );
-
-}
-
-
-/* =========================================================
-   EXPORT CSV HISTORY
-========================================================= */
-
-function exportCSV(){
-
-    if(!historyData.length){
-
-        alert(
-            "Tidak ada data untuk diekspor."
-        );
-
-        return;
-
-    }
-
-
-    const rows = [];
-
-
-    rows.push([
-
-        "Tanggal",
-        "Waktu",
-        "Arah Angin",
-        "Derajat",
-        "Kecepatan Angin (m/s)",
-        "Suhu (°C)",
-        "Kelembaban (%)",
-        "Tekanan (hPa)",
-        "Jarak (m)",
-        "Tinggi Air (m)"
-
-    ]);
-
-
-    historyData.forEach(record => {
-
-        const date =
-            getRecordDate(record);
-
-
-        const direction =
-            numberValue(
-                record.arah_angin ??
-                record.arah
-            );
-
-
-        const speed =
-            numberValue(
-                record.kecepatan_ms ??
-                record.kecepatan
-            );
-
-
-        const temperature =
-            numberValue(record.suhu);
-
-
-        const humidity =
-            numberValue(record.kelembapan);
-
-
-        const pressure =
-            numberValue(record.tekanan);
-
-
-        const distance =
-            getDistance(record);
-
-
-        const water =
-            Math.max(
-                0,
-                sensorHeight - distance
-            );
-
-
-        rows.push([
-
-            formatDate(date),
-
-            formatTime(date),
-
-            getDirectionName(
-                direction
-            ),
-
-            direction,
-
-            speed,
-
-            temperature,
-
-            humidity,
-
-            pressure,
-
-            distance,
-
-            water
-
-        ]);
-
-    });
-
-
-    downloadCSV(
-        rows,
-        "riwayat_monitoring_pesisir.csv"
-    );
-
-}
-
-
-/* =========================================================
-   EXPORT EXCEL HISTORY
-========================================================= */
-
-function exportExcel(){
-
-    if(!historyData.length){
-
-        alert(
-            "Tidak ada data untuk diekspor."
-        );
-
-        return;
-
-    }
-
-
-    const rows = [];
-
-
-    historyData.forEach(record => {
-
-        const date =
-            getRecordDate(record);
-
-
-        const direction =
-            numberValue(
-                record.arah_angin ??
-                record.arah
-            );
-
-
-        const speed =
-            numberValue(
-                record.kecepatan_ms ??
-                record.kecepatan
-            );
-
-
-        const temperature =
-            numberValue(record.suhu);
-
-
-        const humidity =
-            numberValue(record.kelembapan);
-
-
-        const pressure =
-            numberValue(record.tekanan);
-
-
-        const distance =
-            getDistance(record);
-
-
-        const water =
-            Math.max(
-                0,
-                sensorHeight - distance
-            );
-
-
-        rows.push({
-
-            Tanggal:
-                formatDate(date),
-
-            Waktu:
-                formatTime(date),
-
-            "Arah Angin":
-                getDirectionName(direction),
-
-            "Derajat":
-                direction,
-
-            "Kecepatan Angin (m/s)":
-                speed,
-
-            "Suhu (°C)":
-                temperature,
-
-            "Kelembaban (%)":
-                humidity,
-
-            "Tekanan (hPa)":
-                pressure,
-
-            "Jarak (m)":
-                distance,
-
-            "Tinggi Air (m)":
-                water
-
-        });
-
-    });
-
-
-    const worksheet =
-        XLSX.utils.json_to_sheet(
-            rows
-        );
-
-
-    const workbook =
-        XLSX.utils.book_new();
-
-
-    XLSX.utils.book_append_sheet(
-        workbook,
-        worksheet,
-        "Riwayat Data"
-    );
-
-
-    XLSX.writeFile(
-        workbook,
-        "riwayat_monitoring_pesisir.xlsx"
-    );
-
-}
-
-
-/* =========================================================
-   EXPORT FORECAST CSV
-========================================================= */
-
-function exportForecastCSV(){
-
-    if(!forecastData.length){
-
-        alert(
-            "Latih LSTM terlebih dahulu."
-        );
-
-        return;
-
-    }
-
-
-    const rows = [
-
-        [
-            "Hari",
-            "Tanggal",
-            "Angin (m/s)",
-            "Suhu (°C)",
-            "Kelembaban (%)",
-            "Tekanan (hPa)",
-            "Tinggi Air (m)"
-        ]
-
-    ];
-
-
-    forecastData.forEach(item => {
-
-        rows.push([
-
-            item.day,
-
-            item.date,
-
-            item.wind,
-
-            item.temperature,
-
-            item.humidity,
-
-            item.pressure,
-
-            item.water
-
-        ]);
-
-    });
-
-
-    downloadCSV(
-        rows,
-        "prediksi_lstm_7_hari.csv"
-    );
-
-}
-
-
-/* =========================================================
-   EXPORT FORECAST EXCEL
-========================================================= */
-
-function exportForecastExcel(){
-
-    if(!forecastData.length){
-
-        alert(
-            "Latih LSTM terlebih dahulu."
-        );
-
-        return;
-
-    }
-
-
-    const rows =
-        forecastData.map(
-            item => ({
-
-                Hari:
-                    item.day,
-
-                Tanggal:
-                    item.date,
-
-                "Angin (m/s)":
-                    item.wind,
-
-                "Suhu (°C)":
-                    item.temperature,
-
-                "Kelembaban (%)":
-                    item.humidity,
-
-                "Tekanan (hPa)":
-                    item.pressure,
-
-                "Tinggi Air (m)":
-                    item.water
-
-            })
-        );
-
-
-    const worksheet =
-        XLSX.utils.json_to_sheet(
-            rows
-        );
-
-
-    const workbook =
-        XLSX.utils.book_new();
-
-
-    XLSX.utils.book_append_sheet(
-        workbook,
-        worksheet,
-        "Prediksi LSTM"
-    );
-
-
-    XLSX.writeFile(
-        workbook,
-        "prediksi_lstm_7_hari.xlsx"
-    );
-
-}
-
-
-/* =========================================================
-   DOWNLOAD CSV
-========================================================= */
-
-function downloadCSV(
-    rows,
-    filename
-){
-
-    const csv =
-        rows
-        .map(row =>
-            row
-            .map(value =>
-                `"${String(value)
-                    .replace(/"/g,'""')}"`
+    /* =====================================================
+       ENVIRONMENT CHART
+       ===================================================== */
+
+    const environmentCtx =
+        document
+            .getElementById(
+                "environmentChart"
             )
-            .join(",")
-        )
-        .join("\n");
+            .getContext("2d");
 
 
-    const blob =
-        new Blob(
-            ["\ufeff" + csv],
+    const environmentChart =
+        new Chart(
+            environmentCtx,
             {
-                type:
-                    "text/csv;charset=utf-8;"
+
+                type: "line",
+
+                data: {
+
+                    labels: [],
+
+                    datasets: [
+
+                        {
+
+                            label:
+                                "Suhu (°C)",
+
+                            data: [],
+
+                            borderWidth: 2,
+
+                            tension: 0.35,
+
+                            pointRadius: 2
+
+                        },
+
+                        {
+
+                            label:
+                                "Kelembapan (%)",
+
+                            data: [],
+
+                            borderWidth: 2,
+
+                            tension: 0.35,
+
+                            pointRadius: 2
+
+                        },
+
+                        {
+
+                            label:
+                                "Tekanan (hPa)",
+
+                            data: [],
+
+                            borderWidth: 2,
+
+                            tension: 0.35,
+
+                            pointRadius: 2
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    interaction: {
+
+                        intersect: false,
+
+                        mode: "index"
+
+                    },
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: false
+
+                        },
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    "Waktu"
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
             }
         );
 
 
-    const url =
-        URL.createObjectURL(blob);
+    /* =====================================================
+       UPDATE CHART
+       ===================================================== */
+
+    function updateCharts() {
+
+        const data =
+            historyData.slice(-100);
 
 
-    const link =
-        document.createElement("a");
+        const labels =
+            data.map(
+                function(item) {
+
+                    const time =
+                        getTimestamp(item);
+
+                    if (!time) {
+                        return "-";
+                    }
+
+                    const date =
+                        new Date(time);
+
+                    return date.toLocaleTimeString(
+                        "id-ID",
+                        {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        }
+                    );
+
+                }
+            );
 
 
-    link.href = url;
+        /* WIND */
 
-    link.download =
-        filename;
-
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-
-}
+        windChart.data.labels =
+            labels;
 
 
-/* =========================================================
-   INITIAL MESSAGE
-========================================================= */
+        windChart.data.datasets[0].data =
+            data.map(
+                function(item) {
 
-document.getElementById(
-    "lstmStatus"
-).textContent =
-    "LSTM siap. Sistem akan menggunakan data historis yang sudah tersedia di Firebase.";
+                    return numberValue(
+                        item.kecepatan_ms
+                    );
+
+                }
+            );
 
 
-/* =========================================================
-   FINISH
-========================================================= */
+        windChart.update();
+
+
+        /* ENVIRONMENT */
+
+        environmentChart.data.labels =
+            labels;
+
+
+        environmentChart.data.datasets[0].data =
+            data.map(
+                item =>
+                    numberValue(item.suhu)
+            );
+
+
+        environmentChart.data.datasets[1].data =
+            data.map(
+                item =>
+                    numberValue(item.kelembapan)
+            );
+
+
+        environmentChart.data.datasets[2].data =
+            data.map(
+                item =>
+                    numberValue(item.tekanan)
+            );
+
+
+        environmentChart.update();
+
+    }
+
+
+    /* =====================================================
+       UPDATE TABLE
+       ===================================================== */
+
+    function updateTable() {
+
+        const table =
+            document.getElementById(
+                "dataTable"
+            );
+
+
+        const data =
+            historyData
+                .slice()
+                .reverse()
+                .slice(0, 15);
+
+
+        if (
+            data.length === 0
+        ) {
+
+            table.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="8"
+                        class="no-data"
+                    >
+                        Belum ada data sensor
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+
+        }
+
+
+        table.innerHTML =
+            data.map(
+                function(item) {
+
+                    const timestamp =
+                        getTimestamp(item);
+
+
+                    const direction =
+                        item.arah_angin ||
+                        item.arah ||
+                        "-";
+
+
+                    const speed =
+                        numberValue(
+                            item.kecepatan_ms
+                        );
+
+
+                    const temp =
+                        numberValue(
+                            item.suhu
+                        );
+
+
+                    const humidity =
+                        numberValue(
+                            item.kelembapan
+                        );
+
+
+                    const pressure =
+                        numberValue(
+                            item.tekanan
+                        );
+
+
+                    const distance =
+                        getDistance(item);
+
+
+                    const water =
+                        getWaterLevel(item);
+
+
+                    return `
+
+                        <tr>
+
+                            <td>
+                                ${
+                                    timestamp
+                                        ? formatTime(timestamp)
+                                        : "-"
+                                }
+                            </td>
+
+                            <td>
+                                ${direction}
+                            </td>
+
+                            <td>
+                                ${speed.toFixed(2)} m/s
+                            </td>
+
+                            <td>
+                                ${temp.toFixed(2)} °C
+                            </td>
+
+                            <td>
+                                ${humidity.toFixed(2)} %
+                            </td>
+
+                            <td>
+                                ${pressure.toFixed(2)} hPa
+                            </td>
+
+                            <td>
+                                ${distance.toFixed(2)} m
+                            </td>
+
+                            <td>
+                                ${water.toFixed(2)} m
+                            </td>
+
+                        </tr>
+
+                    `;
+
+                }
+            )
+            .join("");
+
+    }
+
+
+    /* =====================================================
+       SETTINGS
+       ===================================================== */
+
+    function openSettings() {
+
+        document.getElementById(
+            "sensorHeightInput"
+        ).value =
+            sensorHeight.toFixed(2);
+
+
+        document.getElementById(
+            "settingsModal"
+        ).classList.add(
+            "show"
+        );
+
+    }
+
+
+    function closeSettings() {
+
+        document.getElementById(
+            "settingsModal"
+        ).classList.remove(
+            "show"
+        );
+
+    }
+
+
+    function saveSettings() {
+
+        const value =
+            parseFloat(
+                document.getElementById(
+                    "sensorHeightInput"
+                ).value
+            );
+
+
+        if (
+            isNaN(value) ||
+            value < 0
+        ) {
+
+            alert(
+                "Masukkan nilai tinggi sensor yang benar."
+            );
+
+            return;
+
+        }
+
+
+        sensorHeight =
+            value;
+
+
+        localStorage.setItem(
+            "sensorHeight",
+            sensorHeight
+        );
+
+
+        if (latestData) {
+
+            const water =
+                getWaterLevel(
+                    latestData
+                );
+
+
+            document.getElementById(
+                "waterLevel"
+            ).textContent =
+                water.toFixed(2);
+
+        }
+
+
+        closeSettings();
+
+    }
+
+
+    /* =====================================================
+       MENU
+       ===================================================== */
+
+    function scrollToData() {
+
+        document.getElementById(
+            "dataSection"
+        ).scrollIntoView(
+            {
+                behavior: "smooth"
+            }
+        );
+
+    }
+
+
+    function showDashboard() {
+
+        window.scrollTo(
+            {
+                top: 0,
+                behavior: "smooth"
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       CLOSE MODAL WHEN CLICK OUTSIDE
+       ===================================================== */
+
+    document.getElementById(
+        "settingsModal"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            if (
+                event.target === this
+            ) {
+
+                closeSettings();
+
+            }
+
+        }
+    );
+
+
+    /* =====================================================
+       INITIALIZATION
+       ===================================================== */
+
+    document.getElementById(
+        "sensorHeightInput"
+    ).value =
+        sensorHeight.toFixed(2);
+
+
+    console.log(
+        "Dashboard Monitoring Pesisir aktif."
+    );
+
+    console.log(
+        "Firebase database:",
+        firebaseConfig.databaseURL
+    );
 
 </script>
 
