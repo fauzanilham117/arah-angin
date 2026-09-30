@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>LSTM Forecast Monitoring Pesisir</title>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      color: #1f2937;
+    }
+
+    header {
+      background: #0f4c81;
+      color: white;
+      padding: 22px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(
+        auto-fit,
+        minmax(190px, 1fr)
+      );
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #4b5563;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 11px 18px;
+      cursor: pointer;
+      background: #0f4c81;
+      color: white;
+      margin: 5px 5px 5px 0;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      background: #eef6ff;
+      margin-top: 10px;
+      white-space: pre-line;
+    }
+
+    .progress {
+      width: 100%;
+      height: 12px;
+      background: #e5e7eb;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: #0f4c81;
+      transition: width 0.2s;
+    }
+
+    .metric {
+      padding: 14px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+
+    .metric b {
+      display: block;
+      font-size: 20px;
+      margin-top: 5px;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 9px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #eef2f7;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    canvas {
+      width: 100%;
+      max-height: 430px;
+    }
+
+    .warning {
+      background: #fff7ed;
+      color: #9a3412;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Prediksi LSTM Monitoring Pesisir</h1>
+  <div>Prediksi 7 Hari Menggunakan Data Historis Firebase</div>
+</header>
+
+<div class="container">
+
+  <!-- KONFIGURASI -->
+  <div class="card">
+
+    <h2>Konfigurasi Firebase</h2>
+
+    <label>
+      Firebase Realtime Database URL
+    </label>
+
+    <input
+      id="firebaseUrl"
+      value="https://arah-angin-76f91-default-rtdb.firebaseio.com"
+    >
+
+    <div class="small">
+      Data dibaca dari:
+      <b>/cuaca/history</b>
+    </div>
+
+    <br>
+
+    <button id="loadBtn">
+      1. Ambil Data Firebase
+    </button>
+
+    <button id="trainBtn" disabled>
+      2. Latih LSTM
+    </button>
+
+    <button id="forecastBtn" disabled>
+      3. Prediksi 7 Hari
+    </button>
+
+    <button id="downloadBtn" disabled>
+      Download CSV
+    </button>
+
+    <div class="progress">
+      <div id="progressBar" class="bar"></div>
+    </div>
+
+    <div id="status" class="status">
+      Menunggu proses...
+    </div>
+
+  </div>
+
+
+  <!-- INFORMASI DATA -->
+  <div class="card">
+
+    <h2>Informasi Data</h2>
+
+    <div id="info" class="grid"></div>
+
+  </div>
+
+
+  <!-- EVALUASI -->
+  <div class="card">
+
+    <h2>Evaluasi Model LSTM</h2>
+
+    <div id="metrics" class="grid"></div>
+
+  </div>
+
+
+  <!-- GRAFIK -->
+  <div class="card">
+
+    <h2>Grafik Prediksi 7 Hari</h2>
+
+    <canvas id="forecastChart"></canvas>
+
+  </div>
+
+
+  <!-- TABEL -->
+  <div class="card">
+
+    <h2>Hasil Prediksi</h2>
+
+    <div class="table-wrap">
+
+      <table id="forecastTable">
+
+        <thead>
+
+          <tr>
+            <th>Waktu</th>
+            <th>Suhu (°C)</th>
+            <th>Kelembapan (%)</th>
+            <th>Kecepatan Angin (m/s)</th>
+            <th>Arah Angin (°)</th>
+            <th>Tinggi Muka Air (m)</th>
+          </tr>
+
+        </thead>
+
+        <tbody></tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script src="./lstm.js"></script>
+
+
+<script>
+
+let forecastData = [];
+let modelReady = false;
+
+const $ = id => document.getElementById(id);
+
+
+// ===============================
+// STATUS
+// ===============================
+
+function setStatus(message) {
+
+  $("status").textContent = message;
+
+}
+
+
+// ===============================
+// PROGRESS
+// ===============================
+
+function setProgress(value) {
+
+  $("progressBar").style.width =
+    Math.max(0, Math.min(100, value)) + "%";
+
+}
+
+
+// ===============================
+// INFO DATA
+// ===============================
+
+function showInfo(data) {
+
+  if (!data.length) return;
+
+  const dates =
+    data
+      .map(x => x.datetime)
+      .filter(Boolean)
+      .sort();
+
+  $("info").innerHTML = `
+
+    <div class="metric">
+      Jumlah Data
+      <b>${data.length}</b>
+    </div>
+
+    <div class="metric">
+      Data Awal
+      <b>${dates[0] || "-"}</b>
+    </div>
+
+    <div class="metric">
+      Data Akhir
+      <b>${dates[dates.length - 1] || "-"}</b>
+    </div>
+
+    <div class="metric">
+      Input LSTM
+      <b>24 Jam</b>
+    </div>
+
+    <div class="metric">
+      Prediksi
+      <b>168 Jam</b>
+    </div>
+
+  `;
+
+}
+
+
+// ===============================
+// METRICS
+// ===============================
+
+function showMetrics(metrics) {
+
+  if (!metrics) return;
+
+  const names = {
+
+    suhu: "Suhu",
+
+    kelembapan:
+      "Kelembapan",
+
+    kecepatan_angin:
+      "Kecepatan Angin",
+
+    tinggi_muka_air:
+      "Tinggi Muka Air"
+
+  };
+
+  let html = "";
+
+  for (const key in metrics) {
+
+    if (key === "arah_angin")
+      continue;
+
+    const m = metrics[key];
+
+    html += `
+
+      <div class="metric">
+
+        ${names[key] || key}
+
+        <b>
+          MAE :
+          ${m.MAE.toFixed(4)}
+        </b>
+
+        <div class="small">
+          RMSE :
+          ${m.RMSE.toFixed(4)}
+        </div>
+
+        <div class="small">
+          R² :
+          ${m.R2.toFixed(4)}
+        </div>
+
+      </div>
+
+    `;
+
+  }
+
+  if (metrics.arah_angin) {
+
+    html += `
+
+      <div class="metric">
+
+        Arah Angin
+
+        <b>
+          MAE :
+          ${metrics.arah_angin.MAE.toFixed(2)}°
+        </b>
+
+        <div class="small">
+          RMSE :
+          ${metrics.arah_angin.RMSE.toFixed(2)}°
+        </div>
+
+      </div>
+
+    `;
+
+  }
+
+  $("metrics").innerHTML = html;
+
+}
+
+
+// ===============================
+// GRAFIK
+// ===============================
+
+function drawChart(data) {
+
+  const canvas =
+    $("forecastChart");
+
+  const ctx =
+    canvas.getContext("2d");
+
+  const width =
+    canvas.clientWidth || 1000;
+
+  const height = 400;
+
+  const dpr =
+    window.devicePixelRatio || 1;
+
+  canvas.width =
+    width * dpr;
+
+  canvas.height =
+    height * dpr;
+
+  ctx.scale(dpr, dpr);
+
+  ctx.clearRect(
+    0,
+    0,
+    width,
+    height
+  );
+
+
+  const series = [
+
+    ["Suhu", "suhu"],
+
+    ["Kelembapan", "kelembapan"],
+
+    [
+      "Kecepatan Angin",
+      "kecepatan_angin"
+    ],
+
+    [
+      "Tinggi Muka Air",
+      "tinggi_muka_air"
+    ]
+
+  ];
+
+
+  const values = [];
+
+  series.forEach(
+    ([_, key]) => {
+
+      data.forEach(x => {
+
+        const v =
+          Number(x[key]);
+
+        if (
+          Number.isFinite(v)
+        ) {
+          values.push(v);
+        }
+
+      });
+
+    }
+  );
+
+
+  if (!values.length)
+    return;
+
+
+  const min =
+    Math.min(...values);
+
+  const max =
+    Math.max(...values);
+
+  const range =
+    (max - min) || 1;
+
+
+  const left = 55;
+  const right = 15;
+  const top = 20;
+  const bottom = 45;
+
+  const plotW =
+    width - left - right;
+
+  const plotH =
+    height - top - bottom;
+
+
+  // GRID
+
+  ctx.strokeStyle =
+    "#cbd5e1";
+
+  ctx.lineWidth = 1;
+
+
+  for (
+    let i = 0;
+    i <= 5;
+    i++
+  ) {
+
+    const y =
+      top + plotH * i / 5;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+      left,
+      y
+    );
+
+    ctx.lineTo(
+      left + plotW,
+      y
+    );
+
+    ctx.stroke();
+
+
+    const value =
+      max -
+      range * i / 5;
+
+    ctx.fillStyle =
+      "#64748b";
+
+    ctx.font =
+      "11px Arial";
+
+    ctx.fillText(
+      value.toFixed(1),
+      5,
+      y + 4
+    );
+
+  }
+
+
+  // DATA
+
+  series.forEach(
+    ([name, key], index) => {
+
+      ctx.beginPath();
+
+      let first = true;
+
+      data.forEach(
+        (x, i) => {
+
+          const value =
+            Number(x[key]);
+
+          if (
+            !Number.isFinite(value)
+          ) return;
+
+
+          const px =
+            left +
+            plotW *
+            i /
+            Math.max(
+              1,
+              data.length - 1
+            );
+
+
+          const py =
+            top +
+            (
+              max - value
+            ) /
+            range *
+            plotH;
+
+
+          if (first) {
+
+            ctx.moveTo(
+              px,
+              py
+            );
+
+            first = false;
+
+          } else {
+
+            ctx.lineTo(
+              px,
+              py
+            );
+
+          }
+
+        }
+      );
+
+
+      ctx.strokeStyle =
+        `hsl(${index * 80}, 70%, 40%)`;
+
+      ctx.lineWidth = 2;
+
+      ctx.stroke();
+
+
+      ctx.fillStyle =
+        "#334155";
+
+      ctx.font =
+        "12px Arial";
+
+      ctx.fillText(
+        name,
+        left + index * 130,
+        height - 15
+      );
+
+    }
+  );
+
+}
+
+
+// ===============================
+// TABEL
+// ===============================
+
+function renderTable(data) {
+
+  const tbody =
+    $("forecastTable")
+      .querySelector("tbody");
+
+
+  tbody.innerHTML =
+    data.map(x => `
+
+      <tr>
+
+        <td>
+          ${x.datetime}
+        </td>
+
+        <td>
+          ${Number(x.suhu).toFixed(2)}
+        </td>
+
+        <td>
+          ${Number(
+            x.kelembapan
+          ).toFixed(2)}
+        </td>
+
+        <td>
+          ${Number(
+            x.kecepatan_angin
+          ).toFixed(2)}
+        </td>
+
+        <td>
+          ${Number(
+            x.arah_angin
+          ).toFixed(1)}
+        </td>
+
+        <td>
+          ${Number(
+            x.tinggi_muka_air
+          ).toFixed(3)}
+        </td>
+
+      </tr>
+
+    `).join("");
+
+}
+
+
+// ===============================
+// AMBIL DATA FIREBASE
+// ===============================
+
+$("loadBtn").onclick =
+async function () {
+
+  try {
+
+    $("loadBtn").disabled = true;
+
+    setProgress(10);
+
+    setStatus(
+      "Mengambil data dari Firebase..."
+    );
+
+
+    const baseUrl =
+      $("firebaseUrl")
+        .value
+        .trim()
+        .replace(/\/+$/, "");
+
+
+    const raw =
+      await LSTM.getFirebaseData(
+        baseUrl +
+        "/cuaca/history.json"
+      );
+
+
+    setProgress(30);
+
+
+    const data =
+      LSTM.convertFirebaseData(
+        raw,
+        {
+          sensorHeight: 2.5
+        }
+      );
+
+
+    const hourly =
+      LSTM.prepareHourlyData(
+        data
+      );
+
+
+    if (
+      hourly.length < 30
+    ) {
+
+      throw new Error(
+        "Data terlalu sedikit untuk training LSTM. Gunakan data historis yang lebih banyak."
+      );
+
+    }
+
+
+    window.lstmData =
+      hourly;
+
+
+    showInfo(
+      hourly
+    );
+
+
+    $("trainBtn").disabled =
+      false;
+
+
+    setProgress(40);
+
+
+    setStatus(
+
+      "Data berhasil dimuat.\n\n" +
+
+      "Data mentah : " +
+      data.length +
+      "\n" +
+
+      "Data per jam : " +
+      hourly.length +
+      "\n\n" +
+
+      "Silakan klik Latih LSTM."
+
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    setStatus(
+      "Gagal mengambil data:\n" +
+      error.message
+    );
+
+    $("loadBtn").disabled =
+      false;
+
+  }
+
+};
+
+
+// ===============================
+// TRAINING
+// ===============================
+
+$("trainBtn").onclick =
+async function () {
+
+  try {
+
+    $("trainBtn").disabled =
+      true;
+
+
+    setStatus(
+      "LSTM sedang dilatih...\n\n" +
+      "Proses dapat membutuhkan waktu beberapa saat."
+    );
+
+
+    const result =
+      await LSTM.train(
+        window.lstmData,
+        {
+
+          epochs: 200,
+
+          batchSize: 16,
+
+          lookback: 24,
+
+          onEpochEnd:
+          function (
+            epoch,
+            logs
+          ) {
+
+            const progress =
+              40 +
+              (
+                epoch / 200
+              ) * 35;
+
+            setProgress(
+              progress
+            );
+
+            setStatus(
+
+              "Training LSTM...\n" +
+
+              "Epoch : " +
+              epoch +
+              " / 200\n" +
+
+              "Loss : " +
+              Number(
+                logs.loss
+              ).toFixed(6) +
+
+              "\nVal Loss : " +
+              Number(
+                logs.val_loss
+              ).toFixed(6)
+
+            );
+
+          }
+
+        }
+      );
+
+
+    window.lstmTraining =
+      result;
+
+
+    modelReady = true;
+
+
+    showMetrics(
+      result.metrics
+    );
+
+
+    $("forecastBtn")
+      .disabled = false;
+
+
+    setProgress(75);
+
+
+    setStatus(
+
+      "Training LSTM selesai.\n\n" +
+
+      "Epoch terbaik : " +
+      (
+        result.bestEpoch ||
+        "-"
+      ) +
+
+      "\n\n" +
+
+      "Model siap digunakan."
+
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    setStatus(
+      "Training gagal:\n" +
+      error.message
+    );
+
+    $("trainBtn").disabled =
+      false;
+
+  }
+
+};
+
+
+// ===============================
+// PREDIKSI
+// ===============================
+
+$("forecastBtn").onclick =
+async function () {
+
+  try {
+
+    if (!modelReady) {
+
+      throw new Error(
+        "Model belum selesai dilatih."
+      );
+
+    }
+
+
+    $("forecastBtn")
+      .disabled = true;
+
+
+    setStatus(
+      "Membuat prediksi 168 jam..."
+    );
+
+
+    forecastData =
+      await LSTM.forecast(
+
+        window.lstmData,
+
+        168,
+
+        window.lstmTraining
+
+      );
+
+
+    renderTable(
+      forecastData
+    );
+
+
+    drawChart(
+      forecastData
+    );
+
+
+    $("downloadBtn")
+      .disabled = false;
+
+
+    setProgress(100);
+
+
+    setStatus(
+
+      "Prediksi selesai.\n\n" +
+
+      "Jumlah prediksi : " +
+      forecastData.length +
+      " jam\n\n" +
+
+      "Prediksi 7 hari berhasil dibuat."
+
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    setStatus(
+      "Prediksi gagal:\n" +
+      error.message
+    );
+
+  } finally {
+
+    $("forecastBtn")
+      .disabled = false;
+
+  }
+
+};
+
+
+// ===============================
+// DOWNLOAD CSV
+// ===============================
+
+$("downloadBtn").onclick =
+function () {
+
+  if (
+    !forecastData.length
+  ) return;
+
+
+  const csv =
+    LSTM.toCSV(
+      forecastData
+    );
+
+
+  const blob =
+    new Blob(
+      [csv],
+      {
+        type:
+          "text/csv;charset=utf-8;"
+      }
+    );
+
+
+  const url =
+    URL.createObjectURL(
+      blob
+    );
+
+
+  const a =
+    document.createElement(
+      "a"
+    );
+
+
+  a.href = url;
+
+  a.download =
+    "forecast_lstm_7_hari.csv";
+
+
+  a.click();
+
+
+  URL.revokeObjectURL(
+    url
+  );
+
+};
+
+</script>
+
+</body>
+</html>
