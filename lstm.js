@@ -1,191 +1,321 @@
 // ============================================================
-// LSTM FORECAST - FIREBASE
-// Menggunakan data valid langsung tanpa resampling per jam
+// LSTM.JS
+// Firebase -> Data Valid -> Sequence -> LSTM
+// -> Forecast 168 langkah
+//
+// TIDAK ADA RESAMPLING PER JAM
 // ============================================================
 
-import { initializeApp } from
-    "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+// ============================================================
+// CEK TENSORFLOW.JS
+// ============================================================
+
+if (typeof tf === "undefined") {
+
+    console.error(
+        "TensorFlow.js belum dimuat."
+    );
+
+    throw new Error(
+        "TensorFlow.js belum dimuat. Periksa lstm.html."
+    );
+
+}
+
+console.log(
+    "TensorFlow.js:",
+    tf.version.tfjs
+);
+
+
+// ============================================================
+// FIREBASE
+// ============================================================
+
+import {
+    initializeApp
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
     getDatabase,
     ref,
     get
 } from
-    "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
 
 // ============================================================
-// KONFIGURASI FIREBASE
+// FIREBASE CONFIG
+// ============================================================
+//
+// GANTI NILAI DI BAWAH DENGAN CONFIG FIREBASE ANDA.
+// Jika index.html Anda sudah berjalan, gunakan konfigurasi
+// yang sama.
 // ============================================================
 
 const firebaseConfig = {
-    apiKey: "MASUKKAN_API_KEY_ANDA",
-    authDomain: "arah-angin-76f91.firebaseapp.com",
-    databaseURL: "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "arah-angin-76f91",
-    storageBucket: "arah-angin-76f91.firebasestorage.app",
-    messagingSenderId: "MASUKKAN_MESSAGING_SENDER_ID",
-    appId: "MASUKKAN_APP_ID"
+
+    apiKey:
+        "MASUKKAN_API_KEY_ANDA",
+
+    authDomain:
+        "arah-angin-76f91.firebaseapp.com",
+
+    databaseURL:
+        "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
+
+    projectId:
+        "arah-angin-76f91",
+
+    storageBucket:
+        "arah-angin-76f91.firebasestorage.app",
+
+    messagingSenderId:
+        "MASUKKAN_MESSAGING_SENDER_ID",
+
+    appId:
+        "MASUKKAN_APP_ID"
+
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 
 // ============================================================
-// PENGATURAN LSTM
+// INITIALIZE FIREBASE
 // ============================================================
 
-// Jumlah data sebelumnya yang digunakan untuk memprediksi
-// satu data berikutnya.
-//
-// CATATAN:
-// 24 di sini berarti 24 TITIK DATA,
-// bukan otomatis 24 jam.
+const app =
+    initializeApp(
+        firebaseConfig
+    );
+
+const db =
+    getDatabase(app);
+
+
+// ============================================================
+// KONFIGURASI LSTM
+// ============================================================
+
+// 24 titik data sebelumnya digunakan
+// untuk memprediksi titik berikutnya.
+
 const LOOKBACK = 24;
 
-// 168 langkah = 7 hari jika satu langkah = 1 jam.
-// Jika interval data bukan 1 jam, maka 168 langkah mengikuti
-// interval data yang tersedia.
+
+// 168 langkah forecast
+
 const FORECAST_STEPS = 168;
+
+
+// Jumlah epoch training
+
+const EPOCHS = 50;
+
 
 // ============================================================
 // VARIABEL
 // ============================================================
 
 let rawData = [];
+
 let validData = [];
+
 let trainingData = [];
+
 let forecastData = [];
 
 let minValue = 0;
+
 let maxValue = 1;
+
+let lstmChart = null;
+
+
+// ============================================================
+// ELEMENT HTML
+// ============================================================
+
+const logElement =
+    document.getElementById(
+        "log"
+    );
+
+const runButton =
+    document.getElementById(
+        "runLSTM"
+    );
+
+const loadingElement =
+    document.getElementById(
+        "loading"
+    );
+
 
 // ============================================================
 // LOG
 // ============================================================
 
 function log(message) {
-    const waktu = new Date().toLocaleTimeString("id-ID");
 
-    console.log(`[${waktu}] ${message}`);
+    const waktu =
+        new Date()
+            .toLocaleTimeString(
+                "id-ID"
+            );
 
-    const logElement = document.getElementById("log");
+    console.log(
+        `[${waktu}] ${message}`
+    );
 
     if (logElement) {
+
         logElement.textContent +=
             `[${waktu}] ${message}\n`;
 
-        logElement.scrollTop = logElement.scrollHeight;
+        logElement.scrollTop =
+            logElement.scrollHeight;
+
     }
+
 }
 
+
 // ============================================================
-// FIREBASE
+// AMBIL DATA FIREBASE
 // ============================================================
 
 async function ambilDataFirebase() {
 
-    log("Mulai membaca Firebase...");
+    log(
+        "Mulai membaca Firebase..."
+    );
 
-    try {
-
-        const dbRef = ref(db, "cuaca/history");
-
-        const snapshot = await get(dbRef);
-
-        if (!snapshot.exists()) {
-
-            log("Tidak ada data pada cuaca/history.");
-
-            return [];
-
-        }
-
-        const data = snapshot.val();
-
-        let hasil = [];
-
-        // ====================================================
-        // FORMAT OBJECT
-        // ====================================================
-
-        if (
-            typeof data === "object" &&
-            !Array.isArray(data)
-        ) {
-
-            Object.keys(data).forEach(key => {
-
-                const item = data[key];
-
-                if (
-                    item &&
-                    typeof item === "object"
-                ) {
-
-                    hasil.push({
-                        key: key,
-                        ...item
-                    });
-
-                }
-
-            });
-
-        }
-
-        // ====================================================
-        // FORMAT ARRAY
-        // ====================================================
-
-        else if (Array.isArray(data)) {
-
-            data.forEach((item, index) => {
-
-                if (
-                    item &&
-                    typeof item === "object"
-                ) {
-
-                    hasil.push({
-                        key: index,
-                        ...item
-                    });
-
-                }
-
-            });
-
-        }
-
-        log(
-            `Data Firebase berhasil diterima: ${hasil.length}`
+    const databaseRef =
+        ref(
+            db,
+            "cuaca/history"
         );
 
-        return hasil;
-
-    } catch (error) {
-
-        console.error(error);
-
-        log(
-            "Gagal membaca Firebase: " +
-            error.message
+    const snapshot =
+        await get(
+            databaseRef
         );
 
-        return [];
+    if (!snapshot.exists()) {
+
+        throw new Error(
+            "Data cuaca/history tidak ditemukan."
+        );
 
     }
 
+    const data =
+        snapshot.val();
+
+    const hasil = [];
+
+
+    // ========================================================
+    // FIREBASE OBJECT
+    // ========================================================
+
+    if (
+        typeof data === "object" &&
+        !Array.isArray(data)
+    ) {
+
+        Object.keys(data)
+            .forEach(
+                key => {
+
+                    const item =
+                        data[key];
+
+                    if (
+                        item &&
+                        typeof item === "object"
+                    ) {
+
+                        hasil.push({
+
+                            key: key,
+
+                            ...item
+
+                        });
+
+                    }
+
+                }
+            );
+
+    }
+
+
+    // ========================================================
+    // FIREBASE ARRAY
+    // ========================================================
+
+    else if (
+        Array.isArray(data)
+    ) {
+
+        data.forEach(
+            (item, index) => {
+
+                if (
+                    item &&
+                    typeof item === "object"
+                ) {
+
+                    hasil.push({
+
+                        key: index,
+
+                        ...item
+
+                    });
+
+                }
+
+            }
+        );
+
+    }
+
+
+    log(
+        `Data Firebase berhasil diterima: ${hasil.length}`
+    );
+
+    return hasil;
+
 }
 
+
 // ============================================================
-// MENGAMBIL NILAI LINGKUNGAN
+// AMBIL NILAI YANG AKAN DIPREDIKSI
+// ============================================================
+//
+// Prioritas:
+// 1. tinggiAir
+// 2. tinggi_permukaan_laut
+// 3. tinggi_permukaan_air
+// 4. suhu
+// 5. kelembapan
+// 6. tekanan
+//
+// Kalau Anda ingin LSTM hanya memprediksi satu variabel,
+// misalnya tinggi muka air, gunakan hanya tinggiAir.
 // ============================================================
 
 function ambilNilai(item) {
 
+
     // --------------------------------------------------------
-    // Prioritas tinggi muka air
+    // TINGGI AIR
     // --------------------------------------------------------
 
     if (
@@ -193,16 +323,24 @@ function ambilNilai(item) {
         item.tinggiAir !== null
     ) {
 
-        const nilai = Number(item.tinggiAir);
+        const nilai =
+            Number(
+                item.tinggiAir
+            );
 
-        if (Number.isFinite(nilai)) {
+        if (
+            Number.isFinite(nilai)
+        ) {
+
             return nilai;
+
         }
 
     }
 
+
     // --------------------------------------------------------
-    // tinggi_permukaan_laut
+    // TINGGI PERMUKAAN LAUT
     // --------------------------------------------------------
 
     if (
@@ -211,16 +349,23 @@ function ambilNilai(item) {
     ) {
 
         const nilai =
-            Number(item.tinggi_permukaan_laut);
+            Number(
+                item.tinggi_permukaan_laut
+            );
 
-        if (Number.isFinite(nilai)) {
+        if (
+            Number.isFinite(nilai)
+        ) {
+
             return nilai;
+
         }
 
     }
 
+
     // --------------------------------------------------------
-    // tinggi_permukaan_air
+    // TINGGI PERMUKAAN AIR
     // --------------------------------------------------------
 
     if (
@@ -229,16 +374,23 @@ function ambilNilai(item) {
     ) {
 
         const nilai =
-            Number(item.tinggi_permukaan_air);
+            Number(
+                item.tinggi_permukaan_air
+            );
 
-        if (Number.isFinite(nilai)) {
+        if (
+            Number.isFinite(nilai)
+        ) {
+
             return nilai;
+
         }
 
     }
 
+
     // --------------------------------------------------------
-    // suhu
+    // SUHU
     // --------------------------------------------------------
 
     if (
@@ -246,16 +398,24 @@ function ambilNilai(item) {
         item.suhu !== null
     ) {
 
-        const nilai = Number(item.suhu);
+        const nilai =
+            Number(
+                item.suhu
+            );
 
-        if (Number.isFinite(nilai)) {
+        if (
+            Number.isFinite(nilai)
+        ) {
+
             return nilai;
+
         }
 
     }
 
+
     // --------------------------------------------------------
-    // kelembapan
+    // KELEMBAPAN
     // --------------------------------------------------------
 
     if (
@@ -264,16 +424,23 @@ function ambilNilai(item) {
     ) {
 
         const nilai =
-            Number(item.kelembapan);
+            Number(
+                item.kelembapan
+            );
 
-        if (Number.isFinite(nilai)) {
+        if (
+            Number.isFinite(nilai)
+        ) {
+
             return nilai;
+
         }
 
     }
 
+
     // --------------------------------------------------------
-    // tekanan
+    // TEKANAN
     // --------------------------------------------------------
 
     if (
@@ -282,20 +449,28 @@ function ambilNilai(item) {
     ) {
 
         const nilai =
-            Number(item.tekanan);
+            Number(
+                item.tekanan
+            );
 
-        if (Number.isFinite(nilai)) {
+        if (
+            Number.isFinite(nilai)
+        ) {
+
             return nilai;
+
         }
 
     }
+
 
     return null;
 
 }
 
+
 // ============================================================
-// MENGAMBIL TIMESTAMP
+// AMBIL TIMESTAMP
 // ============================================================
 
 function ambilTimestamp(item) {
@@ -303,49 +478,74 @@ function ambilTimestamp(item) {
     const kandidat = [
 
         item.timestamp,
+
         item.time,
+
         item.waktu,
-        item.tanggal,
+
         item.datetime,
-        item.date
+
+        item.date,
+
+        item.tanggal
 
     ];
 
-    for (const nilai of kandidat) {
+
+    for (
+        const nilai of kandidat
+    ) {
 
         if (
-            nilai !== undefined &&
-            nilai !== null &&
-            nilai !== ""
+            nilai === undefined ||
+            nilai === null ||
+            nilai === ""
         ) {
 
-            // Jika timestamp berupa angka
-            if (
-                typeof nilai === "number" &&
-                Number.isFinite(nilai)
-            ) {
+            continue;
 
-                return nilai;
+        }
 
-            }
 
-            // Jika timestamp berupa string
-            const waktu =
-                new Date(nilai).getTime();
+        // ----------------------------------------------------
+        // Timestamp angka
+        // ----------------------------------------------------
 
-            if (!Number.isNaN(waktu)) {
+        if (
+            typeof nilai === "number" &&
+            Number.isFinite(nilai)
+        ) {
 
-                return waktu;
+            return nilai;
 
-            }
+        }
+
+
+        // ----------------------------------------------------
+        // Timestamp string
+        // ----------------------------------------------------
+
+        const waktu =
+            new Date(
+                nilai
+            ).getTime();
+
+
+        if (
+            !Number.isNaN(waktu)
+        ) {
+
+            return waktu;
 
         }
 
     }
 
+
     return null;
 
 }
+
 
 // ============================================================
 // VALIDASI DATA
@@ -353,63 +553,79 @@ function ambilTimestamp(item) {
 
 function validasiData(data) {
 
-    log("Memeriksa data Firebase...");
+    log(
+        "Memeriksa data Firebase..."
+    );
 
     const hasil = [];
 
-    data.forEach((item, index) => {
 
-        const nilai = ambilNilai(item);
+    data.forEach(
+        (item, index) => {
 
-        if (
-            nilai !== null &&
-            Number.isFinite(nilai)
-        ) {
+            const nilai =
+                ambilNilai(
+                    item
+                );
 
-            hasil.push({
+            if (
+                nilai !== null &&
+                Number.isFinite(nilai)
+            ) {
 
-                index: index,
+                hasil.push({
 
-                timestamp:
-                    ambilTimestamp(item),
+                    index: index,
 
-                value: nilai
+                    timestamp:
+                        ambilTimestamp(
+                            item
+                        ),
 
-            });
+                    value: nilai
+
+                });
+
+            }
 
         }
+    );
 
-    });
 
     // ========================================================
-    // SORT BERDASARKAN WAKTU JIKA TERSEDIA
+    // URUTKAN TIMESTAMP
     // ========================================================
 
-    const memilikiTimestamp =
-        hasil.filter(
+    const semuaPunyaWaktu =
+        hasil.length > 1 &&
+        hasil.every(
             item =>
                 item.timestamp !== null
-        ).length;
+        );
+
 
     if (
-        memilikiTimestamp === hasil.length &&
-        hasil.length > 1
+        semuaPunyaWaktu
     ) {
 
         hasil.sort(
             (a, b) =>
-                a.timestamp - b.timestamp
+                a.timestamp -
+                b.timestamp
         );
 
     }
+
 
     log(
         `Data valid setelah konversi: ${hasil.length}`
     );
 
+
     return hasil;
 
 }
+
 
 // ============================================================
 // NORMALISASI
@@ -417,31 +633,60 @@ function validasiData(data) {
 
 function normalisasiData(data) {
 
-    if (data.length === 0) {
-        return [];
-    }
+    const nilai =
+        data.map(
+            item =>
+                item.value
+        );
 
-    const nilai = data.map(
-        item => item.value
+
+    minValue =
+        Math.min(
+            ...nilai
+        );
+
+
+    maxValue =
+        Math.max(
+            ...nilai
+        );
+
+
+    log(
+        `Nilai minimum: ${minValue}`
     );
 
-    minValue = Math.min(...nilai);
-    maxValue = Math.max(...nilai);
 
-    // Jika semua nilai sama
-    if (maxValue === minValue) {
+    log(
+        `Nilai maksimum: ${maxValue}`
+    );
 
-        return nilai.map(() => 0.5);
+
+    if (
+        maxValue === minValue
+    ) {
+
+        return nilai.map(
+            () => 0.5
+        );
 
     }
 
+
     return nilai.map(
-        x =>
-            (x - minValue) /
-            (maxValue - minValue)
+        nilaiData =>
+            (
+                nilaiData -
+                minValue
+            ) /
+            (
+                maxValue -
+                minValue
+            )
     );
 
 }
+
 
 // ============================================================
 // DENORMALISASI
@@ -449,65 +694,98 @@ function normalisasiData(data) {
 
 function denormalisasi(nilai) {
 
-    if (maxValue === minValue) {
+    if (
+        maxValue === minValue
+    ) {
 
         return minValue;
 
     }
 
+
     return (
         nilai *
-        (maxValue - minValue)
+        (
+            maxValue -
+            minValue
+        )
     ) + minValue;
 
 }
 
+
 // ============================================================
-// MEMBENTUK SEQUENCE TRAINING
+// SEQUENCE TRAINING
+// ============================================================
+//
+// CONTOH:
+//
+// 280 data
+// LOOKBACK = 24
+//
+// Sequence:
+// 1  -> data 1-24   -> target 25
+// 2  -> data 2-25   -> target 26
+// 3  -> data 3-26   -> target 27
+// ...
+// 256 -> data 256-279 -> target 280
+//
+// Total = 256 sequence
 // ============================================================
 
-function buatSequence(dataNormal) {
+function buatSequence(
+    dataNormal
+) {
 
     const X = [];
+
     const y = [];
 
-    // ========================================================
-    // TIDAK ADA LAGI:
-    //
-    // resampling per jam
-    // agregasi per jam
-    // pengelompokan hourly
-    //
-    // Data langsung digunakan.
-    // ========================================================
 
     for (
         let i = 0;
-        i <= dataNormal.length - LOOKBACK - 1;
+
+        i <=
+        dataNormal.length -
+        LOOKBACK -
+        1;
+
         i++
     ) {
 
         const sequence = [];
 
+
         for (
             let j = 0;
+
             j < LOOKBACK;
+
             j++
         ) {
 
             sequence.push([
-                dataNormal[i + j]
+                dataNormal[
+                    i + j
+                ]
             ]);
 
         }
 
-        X.push(sequence);
+
+        X.push(
+            sequence
+        );
+
 
         y.push(
-            dataNormal[i + LOOKBACK]
+            dataNormal[
+                i + LOOKBACK
+            ]
         );
 
     }
+
 
     return {
         X,
@@ -516,16 +794,28 @@ function buatSequence(dataNormal) {
 
 }
 
+
 // ============================================================
-// MEMBANGUN MODEL
+// MEMBUAT MODEL LSTM
 // ============================================================
 
 function buatModel() {
 
+    log(
+        "Membuat model LSTM..."
+    );
+
+
     const model =
         tf.sequential();
 
+
+    // ========================================================
+    // LSTM LAYER
+    // ========================================================
+
     model.add(
+
         tf.layers.lstm({
 
             units: 32,
@@ -536,29 +826,49 @@ function buatModel() {
             ]
 
         })
+
     );
 
+
+    // ========================================================
+    // OUTPUT
+    // ========================================================
+
     model.add(
+
         tf.layers.dense({
+
             units: 1
+
         })
+
     );
+
+
+    // ========================================================
+    // COMPILE
+    // ========================================================
 
     model.compile({
 
         optimizer:
-            tf.train.adam(0.001),
+            tf.train.adam(
+                0.001
+            ),
 
-        loss: "meanSquaredError"
+        loss:
+            "meanSquaredError"
 
     });
+
 
     return model;
 
 }
 
+
 // ============================================================
-// TRAINING
+// TRAINING MODEL
 // ============================================================
 
 async function trainingModel(
@@ -567,40 +877,55 @@ async function trainingModel(
     y
 ) {
 
+    log(
+        "Menyiapkan data training..."
+    );
+
+
     const xs =
         tf.tensor3d(
             X
         );
 
+
     const ys =
         tf.tensor2d(
-            y.map(v => [v])
+            y.map(
+                nilai => [
+                    nilai
+                ]
+            )
         );
 
-    log(
-        `Training menggunakan ${X.length} sequence.`
-    );
 
     log(
         `Shape X: ${xs.shape.join(" × ")}`
     );
 
+
     log(
-        `Shape y: ${ys.shape.join(" × ")}`
+        `Shape Y: ${ys.shape.join(" × ")}`
     );
 
-    const EPOCHS = 50;
+
+    log(
+        `Mulai training ${EPOCHS} epoch...`
+    );
+
 
     await model.fit(
         xs,
         ys,
         {
 
-            epochs: EPOCHS,
+            epochs:
+                EPOCHS,
 
-            batchSize: 16,
+            batchSize:
+                16,
 
-            shuffle: true,
+            shuffle:
+                true,
 
             validationSplit:
                 X.length >= 20
@@ -610,12 +935,16 @@ async function trainingModel(
             callbacks: {
 
                 onEpochEnd:
-                    async (epoch, logs) => {
+                    async (
+                        epoch,
+                        logs
+                    ) => {
 
                         if (
                             epoch === 0 ||
                             (epoch + 1) % 5 === 0 ||
-                            epoch === EPOCHS - 1
+                            epoch ===
+                                EPOCHS - 1
                         ) {
 
                             log(
@@ -635,16 +964,24 @@ async function trainingModel(
         }
     );
 
+
     xs.dispose();
+
     ys.dispose();
 
+
+    log(
+        "Training selesai."
+    );
+
 }
+
 
 // ============================================================
 // FORECAST 168 LANGKAH
 // ============================================================
 
-async function forecast168(
+async function forecastLSTM(
     model,
     dataNormal
 ) {
@@ -653,71 +990,112 @@ async function forecast168(
         `Memulai forecast ${FORECAST_STEPS} langkah...`
     );
 
-    // Ambil LOOKBACK data terakhir
+
+    // Ambil 24 data terakhir
+
     let sequence =
         dataNormal.slice(
             -LOOKBACK
         );
 
+
     const hasil = [];
+
+
+    // ========================================================
+    // FORECAST RECURSIVE
+    // ========================================================
 
     for (
         let i = 0;
+
         i < FORECAST_STEPS;
+
         i++
     ) {
+
 
         const input =
             tf.tensor3d(
                 [
                     sequence.map(
-                        value => [value]
+                        nilai => [
+                            nilai
+                        ]
                     )
                 ]
             );
 
-        const prediction =
-            model.predict(input);
 
-        const nilaiNormal =
+        const prediction =
+            model.predict(
+                input
+            );
+
+
+        const nilaiPrediksi =
             (
-                await prediction
-                    .data()
+                await prediction.data()
             )[0];
 
+
         input.dispose();
+
         prediction.dispose();
 
-        // Batasi nilai antara 0 dan 1
-        const nilaiClamped =
+
+        // ----------------------------------------------------
+        // Batasi 0 sampai 1
+        // ----------------------------------------------------
+
+        const nilaiNormal =
             Math.max(
                 0,
                 Math.min(
                     1,
-                    nilaiNormal
+                    nilaiPrediksi
                 )
             );
 
+
+        // ----------------------------------------------------
+        // Kembalikan ke satuan asli
+        // ----------------------------------------------------
+
         const nilaiAsli =
             denormalisasi(
-                nilaiClamped
+                nilaiNormal
             );
+
 
         hasil.push(
             nilaiAsli
         );
 
+
+        // ----------------------------------------------------
         // Geser sequence
+        // ----------------------------------------------------
+
         sequence =
-            sequence.slice(1);
+            sequence.slice(
+                1
+            );
+
 
         sequence.push(
-            nilaiClamped
+            nilaiNormal
         );
 
-        // Beri kesempatan browser
+
+        // ----------------------------------------------------
+        // Beri browser kesempatan
         // memperbarui tampilan
-        if (i % 10 === 0) {
+        // ----------------------------------------------------
+
+        if (
+            i % 10 === 0
+        ) {
 
             await new Promise(
                 resolve =>
@@ -731,114 +1109,254 @@ async function forecast168(
 
     }
 
+
     log(
         `Forecast selesai: ${hasil.length} langkah.`
     );
+
 
     return hasil;
 
 }
 
+
 // ============================================================
-// MEMBUAT WAKTU FORECAST
+// DETEKSI INTERVAL DATA
+// ============================================================
+
+function deteksiInterval(
+    data
+) {
+
+    const timestamp =
+
+        data
+
+            .filter(
+                item =>
+                    item.timestamp !== null
+            )
+
+            .map(
+                item =>
+                    item.timestamp
+            );
+
+
+    if (
+        timestamp.length < 2
+    ) {
+
+        // Default 1 jam
+
+        return 60 * 60 * 1000;
+
+    }
+
+
+    const selisih = [];
+
+
+    for (
+        let i = 1;
+
+        i < timestamp.length;
+
+        i++
+    ) {
+
+        const difference =
+            timestamp[i] -
+            timestamp[i - 1];
+
+
+        if (
+            difference > 0
+        ) {
+
+            selisih.push(
+                difference
+            );
+
+        }
+
+    }
+
+
+    if (
+        selisih.length === 0
+    ) {
+
+        return 60 * 60 * 1000;
+
+    }
+
+
+    // Median
+
+    selisih.sort(
+        (a, b) =>
+            a - b
+    );
+
+
+    const median =
+        selisih[
+            Math.floor(
+                selisih.length / 2
+            )
+        ];
+
+
+    return median;
+
+}
+
+
+// ============================================================
+// WAKTU FORECAST
 // ============================================================
 
 function buatWaktuForecast(
     data
 ) {
 
-    const timestamps =
-        data
-            .filter(
-                item =>
-                    item.timestamp !== null
-            )
-            .map(
-                item =>
-                    item.timestamp
-            );
+    const interval =
+        deteksiInterval(
+            data
+        );
 
-    let interval =
-        60 * 60 * 1000;
-
-    if (timestamps.length >= 2) {
-
-        const selisih = [];
-
-        for (
-            let i = 1;
-            i < timestamps.length;
-            i++
-        ) {
-
-            const d =
-                timestamps[i] -
-                timestamps[i - 1];
-
-            if (
-                d > 0 &&
-                Number.isFinite(d)
-            ) {
-
-                selisih.push(d);
-
-            }
-
-        }
-
-        if (selisih.length > 0) {
-
-            selisih.sort(
-                (a, b) => a - b
-            );
-
-            interval =
-                selisih[
-                    Math.floor(
-                        selisih.length / 2
-                    )
-                ];
-
-        }
-
-    }
 
     log(
         `Interval data terdeteksi: ${
-            (interval / 60000).toFixed(1)
+            (
+                interval /
+                60000
+            ).toFixed(2)
         } menit`
     );
 
-    const timestampTerakhir =
-        data[data.length - 1]
-            .timestamp;
 
-    const waktuMulai =
-        timestampTerakhir !== null
-            ? timestampTerakhir
+    const dataTerakhir =
+        data[
+            data.length - 1
+        ];
+
+
+    const waktuTerakhir =
+        dataTerakhir.timestamp !== null
+
+            ? dataTerakhir.timestamp
+
             : Date.now();
 
-    const hasil = [];
+
+    const waktu = [];
+
 
     for (
         let i = 1;
+
         i <= FORECAST_STEPS;
+
         i++
     ) {
 
-        hasil.push(
-            waktuMulai +
-            interval * i
+        waktu.push(
+
+            waktuTerakhir +
+            (
+                interval *
+                i
+            )
+
         );
 
     }
 
-    return hasil;
+
+    return waktu;
 
 }
 
+
 // ============================================================
-// MENAMPILKAN HASIL
+// TAMPILKAN INFO
+// ============================================================
+
+function tampilkanInfo(
+    jumlahData,
+    jumlahSequence
+) {
+
+    const totalData =
+        document.getElementById(
+            "totalData"
+        );
+
+
+    const totalSequence =
+        document.getElementById(
+            "totalSequence"
+        );
+
+
+    const lookbackValue =
+        document.getElementById(
+            "lookbackValue"
+        );
+
+
+    const forecastValue =
+        document.getElementById(
+            "forecastValue"
+        );
+
+
+    if (
+        totalData
+    ) {
+
+        totalData.textContent =
+            jumlahData;
+
+    }
+
+
+    if (
+        totalSequence
+    ) {
+
+        totalSequence.textContent =
+            jumlahSequence;
+
+    }
+
+
+    if (
+        lookbackValue
+    ) {
+
+        lookbackValue.textContent =
+            LOOKBACK;
+
+    }
+
+
+    if (
+        forecastValue
+    ) {
+
+        forecastValue.textContent =
+            FORECAST_STEPS;
+
+    }
+
+}
+
+
+// ============================================================
+// TABEL FORECAST
 // ============================================================
 
 function tampilkanHasil(
@@ -846,57 +1364,55 @@ function tampilkanHasil(
     waktu
 ) {
 
-    const hasilElement =
+    const element =
         document.getElementById(
             "forecastResult"
         );
 
-    if (!hasilElement) {
 
-        console.table(
-            forecast.map(
-                (nilai, index) => ({
-
-                    langkah:
-                        index + 1,
-
-                    waktu:
-                        new Date(
-                            waktu[index]
-                        ).toLocaleString(
-                            "id-ID"
-                        ),
-
-                    prediksi:
-                        nilai
-
-                })
-            )
-        );
+    if (!element) {
 
         return;
 
     }
 
-    let html = "";
 
-    html += `
+    let html = `
+
         <table>
+
             <thead>
+
                 <tr>
-                    <th>Langkah</th>
-                    <th>Waktu</th>
-                    <th>Prediksi</th>
+
+                    <th>
+                        Langkah
+                    </th>
+
+                    <th>
+                        Waktu
+                    </th>
+
+                    <th>
+                        Prediksi
+                    </th>
+
                 </tr>
+
             </thead>
+
             <tbody>
+
     `;
+
 
     forecast.forEach(
         (nilai, index) => {
 
             html += `
+
                 <tr>
+
                     <td>
                         ${index + 1}
                     </td>
@@ -912,26 +1428,34 @@ function tampilkanHasil(
                     </td>
 
                     <td>
-                        ${nilai.toFixed(2)}
+                        ${nilai.toFixed(3)}
                     </td>
+
                 </tr>
+
             `;
 
         }
     );
 
+
     html += `
+
             </tbody>
+
         </table>
+
     `;
 
-    hasilElement.innerHTML =
+
+    element.innerHTML =
         html;
 
 }
 
+
 // ============================================================
-// GRAFIK FORECAST
+// GRAFIK
 // ============================================================
 
 function tampilkanGrafik(
@@ -944,16 +1468,22 @@ function tampilkanGrafik(
             "lstmChart"
         );
 
+
     if (!canvas) {
+
         return;
+
     }
 
-    const actual =
+
+    const aktual =
         data.map(
-            item => item.value
+            item =>
+                item.value
         );
 
-    const actualLabels =
+
+    const labelsAktual =
         data.map(
             item => {
 
@@ -966,72 +1496,109 @@ function tampilkanGrafik(
                     ).toLocaleString(
                         "id-ID",
                         {
-                            day: "2-digit",
-                            month: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit"
+                            day:
+                                "2-digit",
+
+                            month:
+                                "2-digit",
+
+                            hour:
+                                "2-digit",
+
+                            minute:
+                                "2-digit"
                         }
                     );
 
                 }
+
 
                 return "";
 
             }
         );
 
-    const forecastLabels =
+
+    const labelsForecast =
         forecast.map(
             (_, index) =>
-                `F-${index + 1}`
+                `Forecast ${index + 1}`
         );
+
 
     const labels =
-        actualLabels.concat(
-            forecastLabels
+        labelsAktual.concat(
+            labelsForecast
         );
 
-    const actualData =
-        actual.concat(
+
+    // ========================================================
+    // DATA AKTUAL
+    // ========================================================
+
+    const dataAktual =
+        aktual.concat(
             Array(
                 forecast.length
-            ).fill(null)
+            ).fill(
+                null
+            )
         );
 
-    const forecastDataChart =
+
+    // ========================================================
+    // DATA FORECAST
+    // ========================================================
+
+    const dataForecast =
         Array(
-            actual.length - 1
-        ).fill(null)
+            Math.max(
+                0,
+                aktual.length - 1
+            )
+        )
+            .fill(
+                null
+            )
             .concat(
                 [
-                    actual[
-                        actual.length - 1
+                    aktual[
+                        aktual.length - 1
                     ]
                 ],
                 forecast
             );
 
-    // Hapus chart lama
+
+    // ========================================================
+    // HAPUS CHART SEBELUMNYA
+    // ========================================================
+
     if (
-        window.lstmChart &&
-        typeof window.lstmChart.destroy ===
-            "function"
+        lstmChart
     ) {
 
-        window.lstmChart.destroy();
+        lstmChart.destroy();
 
     }
 
-    window.lstmChart =
+
+    // ========================================================
+    // BUAT CHART
+    // ========================================================
+
+    lstmChart =
         new Chart(
             canvas,
             {
 
-                type: "line",
+                type:
+                    "line",
 
                 data: {
 
-                    labels: labels,
+                    labels:
+                        labels,
 
                     datasets: [
 
@@ -1041,18 +1608,19 @@ function tampilkanGrafik(
                                 "Data Aktual",
 
                             data:
-                                actualData,
-
-                            tension:
-                                0.25,
+                                dataAktual,
 
                             borderWidth:
                                 2,
 
                             pointRadius:
-                                0
+                                0,
+
+                            tension:
+                                0.25
 
                         },
+
 
                         {
 
@@ -1060,25 +1628,29 @@ function tampilkanGrafik(
                                 "Forecast LSTM",
 
                             data:
-                                forecastDataChart,
-
-                            tension:
-                                0.25,
+                                dataForecast,
 
                             borderWidth:
                                 2,
 
                             borderDash:
-                                [6, 4],
+                                [
+                                    6,
+                                    4
+                                ],
 
                             pointRadius:
-                                0
+                                0,
+
+                            tension:
+                                0.25
 
                         }
 
                     ]
 
                 },
+
 
                 options: {
 
@@ -1098,6 +1670,19 @@ function tampilkanGrafik(
 
                     },
 
+
+                    plugins: {
+
+                        legend: {
+
+                            display:
+                                true
+
+                        }
+
+                    },
+
+
                     scales: {
 
                         x: {
@@ -1110,6 +1695,7 @@ function tampilkanGrafik(
                             }
 
                         },
+
 
                         y: {
 
@@ -1127,79 +1713,85 @@ function tampilkanGrafik(
 
 }
 
+
 // ============================================================
 // PROSES UTAMA
 // ============================================================
 
 async function jalankanLSTM() {
 
-    log("================================");
-    log("Memulai proses LSTM...");
-    log("================================");
+    log(
+        "======================================"
+    );
 
-    // --------------------------------------------------------
-    // 1. Ambil Firebase
-    // --------------------------------------------------------
+    log(
+        "MEMULAI PROSES LSTM"
+    );
+
+    log(
+        "======================================"
+    );
+
+
+    // ========================================================
+    // 1. AMBIL FIREBASE
+    // ========================================================
 
     rawData =
         await ambilDataFirebase();
 
-    if (
-        rawData.length === 0
-    ) {
 
-        log(
-            "Proses dihentikan: Firebase kosong."
-        );
-
-        return;
-
-    }
-
-    // --------------------------------------------------------
-    // 2. Validasi
-    // --------------------------------------------------------
+    // ========================================================
+    // 2. VALIDASI
+    // ========================================================
 
     validData =
         validasiData(
             rawData
         );
 
+
     if (
         validData.length <
         LOOKBACK + 1
     ) {
 
-        log(
-            `Data tidak cukup. Minimal ${
-                LOOKBACK + 1
-            } data valid diperlukan.`
-        );
+        throw new Error(
 
-        return;
+            `Data valid hanya ${
+                validData.length
+            }. Minimal ${
+                LOOKBACK + 1
+            } data diperlukan.`
+
+        );
 
     }
 
-    // --------------------------------------------------------
-    // 3. Normalisasi
-    // --------------------------------------------------------
+
+    // ========================================================
+    // 3. NORMALISASI
+    // ========================================================
 
     const dataNormal =
         normalisasiData(
             validData
         );
 
-    // --------------------------------------------------------
-    // 4. Sequence training
-    // --------------------------------------------------------
+
+    // ========================================================
+    // 4. SEQUENCE
+    // ========================================================
 
     const sequence =
         buatSequence(
             dataNormal
         );
 
+
     trainingData =
         sequence;
+
 
     log(
         `Data langsung digunakan: ${
@@ -1207,11 +1799,13 @@ async function jalankanLSTM() {
         } titik.`
     );
 
+
     log(
         `LOOKBACK: ${
             LOOKBACK
         } titik data.`
     );
+
 
     log(
         `Sequence training: ${
@@ -1219,127 +1813,171 @@ async function jalankanLSTM() {
         } sequence.`
     );
 
-    // --------------------------------------------------------
-    // 5. Buat model
-    // --------------------------------------------------------
 
-    log(
-        "Membuat model LSTM..."
+    tampilkanInfo(
+
+        validData.length,
+
+        sequence.X.length
+
     );
+
+
+    // ========================================================
+    // 5. BUAT MODEL
+    // ========================================================
 
     const model =
         buatModel();
 
-    // --------------------------------------------------------
-    // 6. Training
-    // --------------------------------------------------------
+
+    // ========================================================
+    // 6. TRAINING
+    // ========================================================
 
     await trainingModel(
+
         model,
+
         sequence.X,
+
         sequence.y
+
     );
 
-    log(
-        "Training selesai."
-    );
 
-    // --------------------------------------------------------
-    // 7. Forecast
-    // --------------------------------------------------------
+    // ========================================================
+    // 7. FORECAST
+    // ========================================================
 
     forecastData =
-        await forecast168(
+        await forecastLSTM(
+
             model,
+
             dataNormal
+
         );
 
-    // --------------------------------------------------------
-    // 8. Waktu forecast
-    // --------------------------------------------------------
+
+    // ========================================================
+    // 8. WAKTU FORECAST
+    // ========================================================
 
     const waktuForecast =
         buatWaktuForecast(
             validData
         );
 
-    // --------------------------------------------------------
-    // 9. Tampilkan
-    // --------------------------------------------------------
+
+    // ========================================================
+    // 9. TAMPILKAN TABEL
+    // ========================================================
 
     tampilkanHasil(
+
         forecastData,
+
         waktuForecast
+
     );
+
+
+    // ========================================================
+    // 10. TAMPILKAN GRAFIK
+    // ========================================================
 
     tampilkanGrafik(
+
         validData,
+
         forecastData
+
+    );
+
+
+    // ========================================================
+    // 11. SELESAI
+    // ========================================================
+
+    log(
+        "======================================"
     );
 
     log(
-        "================================"
+        "PROSES LSTM SELESAI"
     );
 
     log(
-        "Proses LSTM selesai."
-    );
-
-    log(
-        `Total data valid: ${
+        `Data valid: ${
             validData.length
         }`
     );
 
     log(
-        `Total sequence: ${
+        `Sequence training: ${
             sequence.X.length
         }`
     );
 
     log(
-        `Total forecast: ${
+        `Forecast: ${
             forecastData.length
         } langkah`
     );
 
     log(
-        "================================"
+        "======================================"
     );
 
-    // --------------------------------------------------------
-    // 10. Bersihkan model
-    // --------------------------------------------------------
+
+    // ========================================================
+    // BERSIHKAN MODEL
+    // ========================================================
 
     model.dispose();
 
 }
 
+
 // ============================================================
-// EVENT TOMBOL
+// TOMBOL RUN
 // ============================================================
 
-const tombol =
-    document.getElementById(
-        "runLSTM"
-    );
+if (
+    runButton
+) {
 
-if (tombol) {
-
-    tombol.addEventListener(
+    runButton.addEventListener(
         "click",
         async () => {
 
-            tombol.disabled =
+            runButton.disabled =
                 true;
+
+            if (
+                loadingElement
+            ) {
+
+                loadingElement.style.display =
+                    "inline";
+
+            }
+
 
             try {
 
                 await jalankanLSTM();
 
-            } catch (error) {
+            }
 
-                console.error(error);
+            catch (
+                error
+            ) {
+
+                console.error(
+                    error
+                );
 
                 log(
                     "ERROR: " +
@@ -1348,13 +1986,25 @@ if (tombol) {
 
             }
 
-            tombol.disabled =
+
+            runButton.disabled =
                 false;
+
+
+            if (
+                loadingElement
+            ) {
+
+                loadingElement.style.display =
+                    "none";
+
+            }
 
         }
     );
 
 }
+
 
 // ============================================================
 // STATUS AWAL
@@ -1373,5 +2023,9 @@ log(
 );
 
 log(
-    `Forecast: ${FORECAST_STEPS} langkah / 168 titik`
+    `FORECAST: ${FORECAST_STEPS} langkah`
+);
+
+log(
+    "Tidak menggunakan resampling per jam."
 );
