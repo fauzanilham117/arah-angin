@@ -58,10 +58,10 @@ import {
 const firebaseConfig = {
 
     apiKey:
-        "MASUKKAN_API_KEY_ANDA",
+        "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
 
     authDomain:
-        "arah-angin-76f91.firebaseapp.com",
+        "arah-angin-76f91.firebaseapp.comm",
 
     databaseURL:
         "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -73,10 +73,10 @@ const firebaseConfig = {
         "arah-angin-76f91.firebasestorage.app",
 
     messagingSenderId:
-        "MASUKKAN_MESSAGING_SENDER_ID",
+        "937712967453",
 
     appId:
-        "MASUKKAN_APP_ID"
+        "1:937712967453:web:36e81a289fe2a33b694bf4"
 
 };
 
