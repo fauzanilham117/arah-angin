@@ -2,2252 +2,348 @@
 <html lang="id">
 
 <head>
-
-  <meta charset="UTF-8">
-
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
-
-  <title>Prediksi LSTM - Monitoring Pesisir</title>
-
-
-  <!-- TensorFlow.js -->
-
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-
-
-  <script src="lstm.js"></script>
-
-
-  <style>
-
-    * {
-
-      box-sizing: border-box;
-
-      margin: 0;
-
-      padding: 0;
-
-    }
-
-
-    body {
-
-      font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
-      background: #0b1220;
-
-      color: #e5e7eb;
-
-      min-height: 100vh;
-
-    }
-
-
-    .app {
-
-      display: flex;
-
-      min-height: 100vh;
-
-    }
-
-
-    .sidebar {
-
-      width: 250px;
-
-      background: #111827;
-
-      border-right:
-        1px solid #1f2937;
-
-      padding: 22px 16px;
-
-      position: fixed;
-
-      top: 0;
-
-      bottom: 0;
-
-      left: 0;
-
-    }
-
-
-    .brand {
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 12px;
-
-      margin-bottom: 30px;
-
-      padding: 0 8px;
-
-    }
-
-
-    .brand-icon {
-
-      width: 42px;
-
-      height: 42px;
-
-      border-radius: 12px;
-
-      background:
-        linear-gradient(
-          135deg,
-          #2563eb,
-          #06b6d4
-        );
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      font-size: 21px;
-
-    }
-
-
-    .brand h2 {
-
-      font-size: 17px;
-
-      color: white;
-
-    }
-
-
-    .brand p {
-
-      color: #94a3b8;
-
-      font-size: 11px;
-
-      margin-top: 3px;
-
-    }
-
-
-    .menu-title {
-
-      color: #64748b;
-
-      font-size: 10px;
-
-      text-transform: uppercase;
-
-      letter-spacing: 1px;
-
-      margin: 0 10px 8px;
-
-    }
-
-
-    .menu {
-
-      display: flex;
-
-      flex-direction: column;
-
-      gap: 5px;
-
-    }
-
-
-    .menu a {
-
-      text-decoration: none;
-
-      color: #94a3b8;
-
-      padding: 12px 13px;
-
-      border-radius: 9px;
-
-      font-size: 13px;
-
-      display: flex;
-
-      gap: 12px;
-
-      align-items: center;
-
-    }
-
-
-    .menu a:hover {
-
-      background: #1e293b;
-
-      color: white;
-
-    }
-
-
-    .menu a.active {
-
-      background: #1d4ed8;
-
-      color: white;
-
-    }
-
-
-    .main {
-
-      margin-left: 250px;
-
-      width:
-        calc(100% - 250px);
-
-      padding: 25px;
-
-    }
-
-
-    .topbar {
-
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-      margin-bottom: 22px;
-
-      gap: 15px;
-
-    }
-
-
-    h1 {
-
-      color: white;
-
-      font-size: 25px;
-
-      margin-bottom: 5px;
-
-    }
-
-
-    .subtitle {
-
-      color: #64748b;
-
-      font-size: 12px;
-
-    }
-
-
-    .status {
-
-      background: #0f172a;
-
-      border:
-        1px solid #1f2937;
-
-      border-radius: 9px;
-
-      padding: 10px 14px;
-
-      font-size: 11px;
-
-      color: #94a3b8;
-
-    }
-
-
-    .status span {
-
-      color: #22c55e;
-
-      font-weight: bold;
-
-    }
-
-
-    .grid {
-
-      display: grid;
-
-      grid-template-columns:
-        repeat(4, 1fr);
-
-      gap: 15px;
-
-      margin-bottom: 18px;
-
-    }
-
-
-    .card {
-
-      background: #111827;
-
-      border:
-        1px solid #1f2937;
-
-      border-radius: 12px;
-
-      padding: 18px;
-
-    }
-
-
-    .label {
-
-      color: #64748b;
-
-      font-size: 11px;
-
-      margin-bottom: 10px;
-
-    }
-
-
-    .value {
-
-      color: white;
-
-      font-size: 25px;
-
-      font-weight: bold;
-
-    }
-
-
-    .unit {
-
-      color: #64748b;
-
-      font-size: 11px;
-
-    }
-
-
-    .panel {
-
-      background: #111827;
-
-      border:
-        1px solid #1f2937;
-
-      border-radius: 12px;
-
-      padding: 18px;
-
-      margin-bottom: 18px;
-
-    }
-
-
-    .panel-title {
-
-      color: white;
-
-      font-size: 14px;
-
-      font-weight: 600;
-
-      margin-bottom: 5px;
-
-    }
-
-
-    .panel-subtitle {
-
-      color: #64748b;
-
-      font-size: 10px;
-
-      margin-bottom: 18px;
-
-    }
-
-
-    .controls {
-
-      display: flex;
-
-      gap: 10px;
-
-      flex-wrap: wrap;
-
-    }
-
-
-    button {
-
-      border: 0;
-
-      border-radius: 8px;
-
-      padding: 10px 15px;
-
-      cursor: pointer;
-
-      color: white;
-
-      font-weight: 600;
-
-    }
-
-
-    .load-btn {
-
-      background: #166534;
-
-    }
-
-
-    .train-btn {
-
-      background: #2563eb;
-
-    }
-
-
-    .predict-btn {
-
-      background: #9333ea;
-
-    }
-
-
-    .download-btn {
-
-      background: #475569;
-
-    }
-
-
-    button:disabled {
-
-      opacity: 0.45;
-
-      cursor: not-allowed;
-
-    }
-
-
-    .progress {
-
-      margin-top: 15px;
-
-      height: 9px;
-
-      background: #0f172a;
-
-      border-radius: 20px;
-
-      overflow: hidden;
-
-    }
-
-
-    .progress-bar {
-
-      width: 0%;
-
-      height: 100%;
-
-      background: #2563eb;
-
-      transition: width 0.2s;
-
-    }
-
-
-    #trainingStatus {
-
-      margin-top: 10px;
-
-      color: #94a3b8;
-
-      font-size: 11px;
-
-    }
-
-
-    .metrics {
-
-      display: grid;
-
-      grid-template-columns:
-        repeat(6, 1fr);
-
-      gap: 10px;
-
-    }
-
-
-    .metric {
-
-      background: #0f172a;
-
-      border:
-        1px solid #1e293b;
-
-      border-radius: 9px;
-
-      padding: 13px;
-
-    }
-
-
-    .metric-name {
-
-      color: #64748b;
-
-      font-size: 9px;
-
-      margin-bottom: 7px;
-
-    }
-
-
-    .metric-value {
-
-      color: white;
-
-      font-size: 16px;
-
-      font-weight: bold;
-
-    }
-
-
-    .table-wrapper {
-
-      overflow-x: auto;
-
-    }
-
-
-    table {
-
-      width: 100%;
-
-      min-width: 850px;
-
-      border-collapse: collapse;
-
-    }
-
-
-    th {
-
-      text-align: left;
-
-      color: #64748b;
-
-      font-size: 10px;
-
-      padding: 11px;
-
-      border-bottom:
-        1px solid #1f2937;
-
-    }
-
-
-    td {
-
-      color: #cbd5e1;
-
-      font-size: 11px;
-
-      padding: 11px;
-
-      border-bottom:
-        1px solid #172033;
-
-    }
-
-
-    tr:hover {
-
-      background: #0f172a;
-
-    }
-
-
-    .empty {
-
-      text-align: center;
-
-      color: #64748b;
-
-      padding: 25px;
-
-    }
-
-
-    .log {
-
-      background: #020617;
-
-      border:
-        1px solid #1e293b;
-
-      border-radius: 8px;
-
-      padding: 12px;
-
-      height: 160px;
-
-      overflow-y: auto;
-
-      font-family: monospace;
-
-      font-size: 10px;
-
-      color: #94a3b8;
-
-      white-space: pre-wrap;
-
-    }
-
-
-    @media(max-width:1000px) {
-
-      .grid {
-
-        grid-template-columns:
-          repeat(2, 1fr);
-
-      }
-
-
-      .metrics {
-
-        grid-template-columns:
-          repeat(3, 1fr);
-
-      }
-
-    }
-
-
-    @media(max-width:700px) {
-
-      .sidebar {
-
-        width: 70px;
-
-        padding: 18px 10px;
-
-      }
-
-
-      .brand h2,
-      .brand p,
-      .menu-title,
-      .menu a span:not(.icon) {
-
-        display: none;
-
-      }
-
-
-      .brand {
-
-        justify-content: center;
-
-      }
-
-
-      .menu a {
-
-        justify-content: center;
-
-      }
-
-
-      .main {
-
-        margin-left: 70px;
-
-        width:
-          calc(100% - 70px);
-
-        padding: 16px;
-
-      }
-
-
-      .grid {
-
-        grid-template-columns: 1fr;
-
-      }
-
-
-      .metrics {
-
-        grid-template-columns:
-          repeat(2, 1fr);
-
-      }
-
-
-      .topbar {
-
-        align-items: flex-start;
-
-        flex-direction: column;
-
-      }
-
-    }
-
-  </style>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Prediksi LSTM - Monitoring Pesisir</title>
+
+    <!-- =====================================================
+         TENSORFLOW.JS
+         HARUS DIMUAT SEBELUM lstm.js
+         ===================================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            margin: 25px auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .header h1 {
+            margin: 0 0 8px 0;
+            font-size: 26px;
+        }
+
+        .header p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        .control {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        button {
+            border: none;
+            background: #2563eb;
+            color: white;
+            padding: 12px 22px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(180px, 1fr));
+
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .card-title {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 25px;
+            font-weight: bold;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .panel h2 {
+            margin-top: 0;
+        }
+
+        #chartContainer {
+            position: relative;
+            height: 450px;
+        }
+
+        #log {
+            background: #111827;
+            color: #d1fae5;
+            padding: 15px;
+            border-radius: 8px;
+            height: 220px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        th {
+            background: #f1f5f9;
+            position: sticky;
+            top: 0;
+        }
+
+        .loading {
+            display: none;
+            margin-left: 10px;
+            color: #64748b;
+        }
+
+    </style>
 
 </head>
 
-
 <body>
 
+<div class="container">
 
-<div class="app">
+    <!-- =====================================================
+         HEADER
+         ===================================================== -->
 
-
-  <!-- SIDEBAR -->
-
-  <aside class="sidebar">
-
-    <div class="brand">
-
-      <div class="brand-icon">
-        🌊
-      </div>
-
-      <div>
-
-        <h2>
-          Monitoring Pesisir
-        </h2>
-
-        <p>
-          IoT Environmental System
-        </p>
-
-      </div>
-
-    </div>
-
-
-    <div class="menu-title">
-      Menu
-    </div>
-
-
-    <nav class="menu">
-
-      <a href="index.html">
-
-        <span class="icon">
-          📊
-        </span>
-
-        <span>
-          Dashboard
-        </span>
-
-      </a>
-
-
-      <a
-        href="lstm.html"
-        class="active">
-
-        <span class="icon">
-          🧠
-        </span>
-
-        <span>
-          Prediksi LSTM
-        </span>
-
-      </a>
-
-
-      <a href="index.html#environmentSection">
-
-        <span class="icon">
-          🌡️
-        </span>
-
-        <span>
-          Lingkungan
-        </span>
-
-      </a>
-
-
-      <a href="index.html#seaSection">
-
-        <span class="icon">
-          🌊
-        </span>
-
-        <span>
-          Pasang Surut
-        </span>
-
-      </a>
-
-
-      <a href="index.html#historySection">
-
-        <span class="icon">
-          📋
-        </span>
-
-        <span>
-          History
-        </span>
-
-      </a>
-
-    </nav>
-
-  </aside>
-
-
-  <!-- MAIN -->
-
-  <main class="main">
-
-
-    <div class="topbar">
-
-      <div>
+    <div class="header">
 
         <h1>
-          Prediksi LSTM
+            Prediksi Data Lingkungan Menggunakan LSTM
         </h1>
 
-        <div class="subtitle">
-
-          Prediksi kondisi lingkungan dan tinggi muka air
-          menggunakan data dari Firebase
-
-        </div>
-
-      </div>
-
-
-      <div class="status">
-
-        Firebase:
-
-        <span id="firebaseStatus">
-          Belum membaca
-        </span>
-
-      </div>
+        <p>
+            Data historis diambil langsung dari Firebase
+            Realtime Database.
+        </p>
 
     </div>
 
 
-    <!-- INFO DATA -->
+    <!-- =====================================================
+         CONTROL
+         ===================================================== -->
 
-    <section class="grid">
+    <div class="control">
 
-
-      <div class="card">
-
-        <div class="label">
-          DATA FIREBASE
-        </div>
-
-        <div
-          class="value"
-          id="firebaseCount">
-
-          --
-
-        </div>
-
-        <div class="unit">
-          record
-
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="label">
-          DATA PER JAM
-        </div>
-
-        <div
-          class="value"
-          id="hourlyCount">
-
-          --
-
-        </div>
-
-        <div class="unit">
-          data
-
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="label">
-          DATA AWAL
-        </div>
-
-        <div
-          class="value"
-          id="firstDate"
-          style="font-size:14px;">
-
-          --
-
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="label">
-          DATA TERAKHIR
-        </div>
-
-        <div
-          class="value"
-          id="lastDate"
-          style="font-size:14px;">
-
-          --
-
-        </div>
-
-      </div>
-
-
-    </section>
-
-
-    <!-- TRAINING -->
-
-    <section class="panel">
-
-
-      <div class="panel-title">
-        Training Model LSTM
-      </div>
-
-
-      <div class="panel-subtitle">
-
-        Data dari Firebase akan diproses menjadi data per jam
-        sebelum digunakan untuk training.
-
-      </div>
-
-
-      <div class="controls">
-
-
-        <button
-          class="load-btn"
-          onclick="loadData()">
-
-          1. Baca Firebase
-
+        <button id="runLSTM">
+            Mulai Training LSTM
         </button>
 
+        <span id="loading"
+              class="loading">
+            Proses sedang berjalan...
+        </span>
 
-        <button
-          class="train-btn"
-          id="trainButton"
-          onclick="startTraining()"
-          disabled>
-
-          2. Training LSTM
-
-        </button>
+    </div>
 
 
-        <button
-          class="predict-btn"
-          id="predictButton"
-          onclick="startForecast()"
-          disabled>
+    <!-- =====================================================
+         INFO
+         ===================================================== -->
 
-          3. Prediksi 7 Hari
+    <div class="info-grid">
 
-        </button>
+        <div class="card">
 
+            <div class="card-title">
+                Data Valid
+            </div>
 
-        <button
-          class="download-btn"
-          id="downloadButton"
-          onclick="downloadForecast()"
-          disabled>
-
-          ⬇ Download CSV
-
-        </button>
-
-
-      </div>
-
-
-      <div class="progress">
-
-        <div
-          class="progress-bar"
-          id="progressBar">
-        </div>
-
-      </div>
-
-
-      <div id="trainingStatus">
-
-        Menunggu proses...
-
-      </div>
-
-
-    </section>
-
-
-    <!-- METRIK -->
-
-    <section class="panel">
-
-
-      <div class="panel-title">
-        Evaluasi Model
-      </div>
-
-
-      <div class="panel-subtitle">
-
-        Hasil pengujian data testing LSTM
-
-      </div>
-
-
-      <div
-        class="metrics"
-        id="metricsContainer">
-
-
-        <div class="metric">
-
-          <div class="metric-name">
-            SUHU RMSE
-          </div>
-
-          <div
-            class="metric-value"
-            id="rmseSuhu">
-
-            --
-
-          </div>
+            <div
+                class="card-value"
+                id="totalData">
+                -
+            </div>
 
         </div>
 
 
-        <div class="metric">
+        <div class="card">
 
-          <div class="metric-name">
-            KELEMBAPAN RMSE
-          </div>
+            <div class="card-title">
+                Sequence Training
+            </div>
 
-          <div
-            class="metric-value"
-            id="rmseHumidity">
-
-            --
-
-          </div>
+            <div
+                class="card-value"
+                id="totalSequence">
+                -
+            </div>
 
         </div>
 
 
-        <div class="metric">
+        <div class="card">
 
-          <div class="metric-name">
-            ANGIN RMSE
-          </div>
+            <div class="card-title">
+                Lookback
+            </div>
 
-          <div
-            class="metric-value"
-            id="rmseWind">
-
-            --
-
-          </div>
+            <div
+                class="card-value"
+                id="lookbackValue">
+                24
+            </div>
 
         </div>
 
 
-        <div class="metric">
+        <div class="card">
 
-          <div class="metric-name">
-            TINGGI AIR RMSE
-          </div>
+            <div class="card-title">
+                Forecast
+            </div>
 
-          <div
-            class="metric-value"
-            id="rmseWater">
-
-            --
-
-          </div>
+            <div
+                class="card-value"
+                id="forecastValue">
+                168
+            </div>
 
         </div>
 
-
-        <div class="metric">
-
-          <div class="metric-name">
-            ARAH MAE
-          </div>
-
-          <div
-            class="metric-value"
-            id="maeDirection">
-
-            --
-
-          </div>
-
-        </div>
+    </div>
 
 
-        <div class="metric">
+    <!-- =====================================================
+         GRAFIK
+         ===================================================== -->
 
-          <div class="metric-name">
-            EPOCH TERBAIK
-          </div>
+    <div class="panel">
 
-          <div
-            class="metric-value"
-            id="bestEpoch">
+        <h2>
+            Grafik Data Aktual dan Forecast LSTM
+        </h2>
 
-            --
+        <div id="chartContainer">
 
-          </div>
+            <canvas id="lstmChart"></canvas>
 
         </div>
 
-
-      </div>
-
-
-    </section>
+    </div>
 
 
-    <!-- LOG -->
+    <!-- =====================================================
+         LOG
+         ===================================================== -->
 
-    <section class="panel">
+    <div class="panel">
 
+        <h2>
+            Log Proses
+        </h2>
 
-      <div class="panel-title">
-        Log Proses
-      </div>
+        <div id="log"></div>
 
-
-      <div class="panel-subtitle">
-        Informasi proses pembacaan data dan training
-      </div>
-
-
-      <div
-        class="log"
-        id="log">
-
-        Belum ada proses.
-
-      </div>
+    </div>
 
 
-    </section>
+    <!-- =====================================================
+         HASIL FORECAST
+         ===================================================== -->
 
+    <div class="panel">
 
-    <!-- FORECAST -->
+        <h2>
+            Hasil Forecast 168 Langkah
+        </h2>
 
-    <section class="panel">
+        <div class="table-wrapper">
 
+            <div id="forecastResult">
+                Belum ada proses.
+            </div>
 
-      <div class="panel-title">
-        Prediksi 7 Hari
-      </div>
+        </div>
 
-
-      <div class="panel-subtitle">
-
-        Hasil prediksi 168 jam ke depan
-
-      </div>
-
-
-      <div class="table-wrapper">
-
-
-        <table>
-
-
-          <thead>
-
-            <tr>
-
-              <th>
-                No
-              </th>
-
-              <th>
-                Waktu
-              </th>
-
-              <th>
-                Suhu
-              </th>
-
-              <th>
-                Kelembapan
-              </th>
-
-              <th>
-                Kecepatan Angin
-              </th>
-
-              <th>
-                Arah Angin
-              </th>
-
-              <th>
-                Tinggi Muka Air
-              </th>
-
-            </tr>
-
-          </thead>
-
-
-          <tbody
-            id="forecastTable">
-
-            <tr>
-
-              <td
-                colspan="7"
-                class="empty">
-
-                Belum ada hasil prediksi.
-
-              </td>
-
-            </tr>
-
-          </tbody>
-
-
-        </table>
-
-      </div>
-
-    </section>
-
-
-  </main>
+    </div>
 
 </div>
 
 
-<script>
-
-
-  /* =====================================================
-     GLOBAL
-  ===================================================== */
-
-  let rawFirebaseData = null;
-
-  let convertedData = [];
-
-  let hourlyData = [];
-
-  let trainingResult = null;
-
-  let forecastData = [];
-
-
-  /* =====================================================
-     LOG
-  ===================================================== */
-
-  function log(message) {
-
-    const element =
-      document.getElementById(
-        "log"
-      );
-
-
-    const time =
-      new Date()
-        .toLocaleTimeString(
-          "id-ID"
-        );
-
-
-    element.textContent +=
-
-      "[" +
-      time +
-      "] " +
-      message +
-      "\n";
-
-
-    element.scrollTop =
-      element.scrollHeight;
-
-  }
-
-
-  /* =====================================================
-     STATUS
-  ===================================================== */
-
-  function setStatus(
-    text
-  ) {
-
-    document.getElementById(
-      "firebaseStatus"
-    ).textContent =
-      text;
-
-  }
-
-
-  /* =====================================================
-     FORMAT DATE
-  ===================================================== */
-
-  function formatDate(
-    date
-  ) {
-
-    if (
-      !date
-    ) {
-
-      return "--";
-
-    }
-
-
-    return new Date(
-      date
-    ).toLocaleString(
-      "id-ID"
-    );
-
-  }
-
-
-  /* =====================================================
-     BACA FIREBASE
-  ===================================================== */
-
-  async function loadData() {
-
-    try {
-
-      log(
-        "Mulai membaca Firebase..."
-      );
-
-
-      setStatus(
-        "Membaca..."
-      );
-
-
-      const raw =
-        await LSTM.getFirebaseData();
-
-
-      rawFirebaseData =
-        raw;
-
-
-      log(
-        "Data Firebase berhasil diterima."
-      );
-
-
-      /*
-        Konversi data
-      */
-
-      convertedData =
-        LSTM.convertFirebaseData(
-
-          raw,
-
-          {
-
-            sensorHeight:
-              2.5
-
-          }
-
-        );
-
-
-      log(
-
-        "Data valid setelah konversi: " +
-
-        convertedData.length
-
-      );
-
-
-      /*
-        Jadikan per jam
-      */
-
-      hourlyData =
-        LSTM.prepareHourlyData(
-
-          convertedData
-
-        );
-
-
-      log(
-
-        "Data per jam: " +
-
-        hourlyData.length
-
-      );
-
-
-      /*
-        Info
-      */
-
-      const info =
-        LSTM.getDataInfo(
-
-          raw,
-
-          hourlyData
-
-        );
-
-
-      document.getElementById(
-        "firebaseCount"
-      ).textContent =
-        info.firebaseRecords;
-
-
-      document.getElementById(
-        "hourlyCount"
-      ).textContent =
-        info.validRecords;
-
-
-      document.getElementById(
-        "firstDate"
-      ).textContent =
-        formatDate(
-          info.firstDatetime
-        );
-
-
-      document.getElementById(
-        "lastDate"
-      ).textContent =
-        formatDate(
-          info.lastDatetime
-        );
-
-
-      /*
-        Status
-      */
-
-      setStatus(
-        "Terhubung"
-      );
-
-
-      document.getElementById(
-        "trainButton"
-      ).disabled = false;
-
-
-      log(
-        "Data siap digunakan untuk training."
-      );
-
-
-      /*
-        Cek jumlah data
-      */
-
-      if (
-        hourlyData.length < 35
-      ) {
-
-        log(
-
-          "PERINGATAN: data per jam masih sedikit. " +
-
-          "LSTM membutuhkan data historis yang cukup."
-
-        );
-
-      }
-
-
-    }
-
-    catch(error) {
-
-      console.error(
-        error
-      );
-
-
-      setStatus(
-        "Gagal"
-      );
-
-
-      log(
-
-        "ERROR: " +
-        error.message
-
-      );
-
-
-      alert(
-        error.message
-      );
-
-    }
-
-  }
-
-
-  /* =====================================================
-     TRAINING
-  ===================================================== */
-
-  async function startTraining() {
-
-    if (
-      hourlyData.length === 0
-    ) {
-
-      alert(
-        "Baca Firebase terlebih dahulu."
-      );
-
-      return;
-
-    }
-
-
-    try {
-
-      document.getElementById(
-        "trainButton"
-      ).disabled = true;
-
-
-      document.getElementById(
-        "predictButton"
-      ).disabled = true;
-
-
-      document.getElementById(
-        "downloadButton"
-      ).disabled = true;
-
-
-      log(
-        "Memulai training LSTM..."
-      );
-
-
-      document.getElementById(
-        "trainingStatus"
-      ).textContent =
-        "Training dimulai...";
-
-
-      const startTime =
-        Date.now();
-
-
-      trainingResult =
-        await LSTM.train(
-
-          hourlyData,
-
-          {
-
-            lookback:
-              24,
-
-            forecastHours:
-              168,
-
-            epochs:
-              100,
-
-            batchSize:
-              16,
-
-            learningRate:
-              0.001,
-
-            lstmUnits:
-              32,
-
-            denseUnits:
-              16,
-
-            validationSplit:
-              0.20,
-
-            onEpochEnd:
-
-              function (
-                epoch,
-                logs
-              ) {
-
-
-                const percent =
-                  Math.round(
-
-                    epoch /
-                    100 *
-                    100
-
-                  );
-
-
-                document.getElementById(
-                  "progressBar"
-                ).style.width =
-                  percent +
-                  "%";
-
-
-                const loss =
-                  logs.loss !== undefined
-
-                    ? logs.loss.toFixed(
-                        6
-                      )
-
-                    : "--";
-
-
-                const valLoss =
-                  logs.val_loss !== undefined
-
-                    ? logs.val_loss.toFixed(
-                        6
-                      )
-
-                    : "--";
-
-
-                document.getElementById(
-                  "trainingStatus"
-                ).textContent =
-
-                  "Epoch " +
-                  epoch +
-                  " / 100 | Loss: " +
-                  loss +
-                  " | Val Loss: " +
-                  valLoss;
-
-
-                if (
-                  epoch === 1 ||
-                  epoch % 10 === 0
-                ) {
-
-                  log(
-
-                    "Epoch " +
-                    epoch +
-                    " | Loss=" +
-                    loss +
-                    " | Val Loss=" +
-                    valLoss
-
-                  );
-
-                }
-
-              }
-
-          }
-
-        );
-
-
-      const elapsed =
-        (
-          Date.now() -
-          startTime
-        ) / 1000;
-
-
-      log(
-
-        "Training selesai dalam " +
-        elapsed.toFixed(1) +
-        " detik."
-
-      );
-
-
-      /*
-        METRIK
-      */
-
-      showMetrics(
-        trainingResult
-      );
-
-
-      document.getElementById(
-        "predictButton"
-      ).disabled = false;
-
-
-      document.getElementById(
-        "trainButton"
-      ).disabled = false;
-
-
-      document.getElementById(
-        "progressBar"
-      ).style.width =
-        "100%";
-
-
-      document.getElementById(
-        "trainingStatus"
-      ).textContent =
-        "Training selesai.";
-
-
-    }
-
-    catch(error) {
-
-      console.error(
-        error
-      );
-
-
-      log(
-
-        "ERROR TRAINING: " +
-        error.message
-
-      );
-
-
-      document.getElementById(
-        "trainingStatus"
-      ).textContent =
-        "Training gagal.";
-
-
-      document.getElementById(
-        "trainButton"
-      ).disabled = false;
-
-    }
-
-  }
-
-
-  /* =====================================================
-     TAMPILKAN METRIK
-  ===================================================== */
-
-  function showMetrics(
-    result
-  ) {
-
-    const metrics =
-      result.metrics;
-
-
-    document.getElementById(
-      "rmseSuhu"
-    ).textContent =
-
-      metrics.suhu
-
-        ? metrics.suhu.RMSE.toFixed(4)
-
-        : "--";
-
-
-    document.getElementById(
-      "rmseHumidity"
-    ).textContent =
-
-      metrics.kelembapan
-
-        ? metrics.kelembapan.RMSE.toFixed(4)
-
-        : "--";
-
-
-    document.getElementById(
-      "rmseWind"
-    ).textContent =
-
-      metrics.kecepatan_angin
-
-        ? metrics.kecepatan_angin.RMSE.toFixed(4)
-
-        : "--";
-
-
-    document.getElementById(
-      "rmseWater"
-    ).textContent =
-
-      metrics.tinggi_muka_air
-
-        ? metrics.tinggi_muka_air.RMSE.toFixed(4)
-
-        : "--";
-
-
-    document.getElementById(
-      "maeDirection"
-    ).textContent =
-
-      metrics.arah_angin
-
-        ? metrics.arah_angin.MAE.toFixed(2) +
-          "°"
-
-        : "--";
-
-
-    document.getElementById(
-      "bestEpoch"
-    ).textContent =
-
-      result.bestEpoch ??
-      "--";
-
-
-    log(
-      "Evaluasi model selesai."
-    );
-
-
-    log(
-
-      "RMSE suhu: " +
-
-      (
-        metrics.suhu?.RMSE ??
-        0
-      ).toFixed(4)
-
-    );
-
-
-    log(
-
-      "RMSE kelembapan: " +
-
-      (
-        metrics.kelembapan?.RMSE ??
-        0
-      ).toFixed(4)
-
-    );
-
-
-    log(
-
-      "RMSE kecepatan angin: " +
-
-      (
-        metrics.kecepatan_angin?.RMSE ??
-        0
-      ).toFixed(4)
-
-    );
-
-
-    log(
-
-      "RMSE tinggi muka air: " +
-
-      (
-        metrics.tinggi_muka_air?.RMSE ??
-        0
-      ).toFixed(4)
-
-    );
-
-
-    log(
-
-      "MAE arah angin: " +
-
-      (
-        metrics.arah_angin?.MAE ??
-        0
-      ).toFixed(2) +
-      "°"
-
-    );
-
-  }
-
-
-  /* =====================================================
-     PREDIKSI
-  ===================================================== */
-
-  async function startForecast() {
-
-    if (
-      !trainingResult
-    ) {
-
-      alert(
-        "Training LSTM belum selesai."
-      );
-
-      return;
-
-    }
-
-
-    try {
-
-      document.getElementById(
-        "predictButton"
-      ).disabled = true;
-
-
-      log(
-        "Memulai prediksi 168 jam..."
-      );
-
-
-      forecastData =
-        await LSTM.forecast(
-
-          hourlyData,
-
-          168,
-
-          trainingResult
-
-        );
-
-
-      log(
-
-        "Prediksi selesai: " +
-        forecastData.length +
-        " jam."
-
-      );
-
-
-      showForecastTable();
-
-
-      document.getElementById(
-        "downloadButton"
-      ).disabled = false;
-
-
-      document.getElementById(
-        "predictButton"
-      ).disabled = false;
-
-
-    }
-
-    catch(error) {
-
-      console.error(
-        error
-      );
-
-
-      log(
-
-        "ERROR PREDIKSI: " +
-        error.message
-
-      );
-
-
-      document.getElementById(
-        "predictButton"
-      ).disabled = false;
-
-    }
-
-  }
-
-
-  /* =====================================================
-     TABEL FORECAST
-  ===================================================== */
-
-  function showForecastTable() {
-
-    const tbody =
-      document.getElementById(
-        "forecastTable"
-      );
-
-
-    if (
-      forecastData.length === 0
-    ) {
-
-      tbody.innerHTML = `
-
-        <tr>
-
-          <td
-            colspan="7"
-            class="empty">
-
-            Tidak ada data prediksi.
-
-          </td>
-
-        </tr>
-
-      `;
-
-      return;
-
-    }
-
-
-    let html = "";
-
-
-    forecastData.forEach(
-
-      function (
-        row,
-        index
-      ) {
-
-
-        html += `
-
-          <tr>
-
-            <td>
-              ${index + 1}
-            </td>
-
-            <td>
-              ${row.datetime}
-            </td>
-
-            <td>
-              ${Number(row.suhu).toFixed(2)}
-              °C
-            </td>
-
-            <td>
-              ${Number(row.kelembapan).toFixed(2)}
-              %
-            </td>
-
-            <td>
-              ${Number(row.kecepatan_angin).toFixed(2)}
-              m/s
-            </td>
-
-            <td>
-              ${Number(row.arah_angin).toFixed(2)}
-              °
-            </td>
-
-            <td>
-              ${Number(row.tinggi_muka_air).toFixed(2)}
-              m
-            </td>
-
-          </tr>
-
-        `;
-
-      }
-
-    );
-
-
-    tbody.innerHTML =
-      html;
-
-  }
-
-
-  /* =====================================================
-     DOWNLOAD FORECAST
-  ===================================================== */
-
-  function downloadForecast() {
-
-    if (
-      !forecastData.length
-    ) {
-
-      return;
-
-    }
-
-
-    const csv =
-      LSTM.toCSV(
-        forecastData
-      );
-
-
-    const blob =
-      new Blob(
-
-        [csv],
-
-        {
-          type:
-            "text/csv;charset=utf-8;"
-        }
-
-      );
-
-
-    const url =
-      URL.createObjectURL(
-        blob
-      );
-
-
-    const link =
-      document.createElement(
-        "a"
-      );
-
-
-    link.href =
-      url;
-
-
-    link.download =
-      "prediksi_lstm_7_hari.csv";
-
-
-    document.body.appendChild(
-      link
-    );
-
-
-    link.click();
-
-
-    document.body.removeChild(
-      link
-    );
-
-
-    URL.revokeObjectURL(
-      url
-    );
-
-  }
-
-
-  /* =====================================================
-     START
-  ===================================================== */
-
-  log(
-    "Halaman LSTM siap."
-  );
-
-
-  log(
-    "Sumber data: cuaca/history"
-  );
-
-
-  log(
-    "Lookback: 24 jam"
-  );
-
-
-  log(
-    "Forecast: 168 jam / 7 hari"
-  );
-
-
-</script>
-
+<!-- =========================================================
+     JAVASCRIPT LSTM
+     TensorFlow.js sudah dimuat sebelumnya
+     ========================================================= -->
+
+<script type="module" src="lstm.js"></script>
 
 </body>
 
