@@ -1,1148 +1,2254 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>LSTM Forecast Monitoring Pesisir</title>
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>Prediksi LSTM - Monitoring Pesisir</title>
+
 
   <!-- TensorFlow.js -->
+
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 
+
+  <script src="lstm.js"></script>
+
+
   <style>
+
     * {
+
       box-sizing: border-box;
+
+      margin: 0;
+
+      padding: 0;
+
     }
+
 
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f7fb;
-      color: #1f2937;
+
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+      background: #0b1220;
+
+      color: #e5e7eb;
+
+      min-height: 100vh;
+
     }
 
-    header {
-      background: #0f4c81;
-      color: white;
-      padding: 22px;
-      text-align: center;
+
+    .app {
+
+      display: flex;
+
+      min-height: 100vh;
+
     }
 
-    header h1 {
-      margin: 0 0 8px;
+
+    .sidebar {
+
+      width: 250px;
+
+      background: #111827;
+
+      border-right:
+        1px solid #1f2937;
+
+      padding: 22px 16px;
+
+      position: fixed;
+
+      top: 0;
+
+      bottom: 0;
+
+      left: 0;
+
     }
 
-    .container {
-      max-width: 1200px;
-      margin: 20px auto;
-      padding: 0 16px;
-    }
 
-    .card {
-      background: white;
-      border-radius: 12px;
-      padding: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-    }
+    .brand {
 
-    h2 {
-      margin-top: 0;
-    }
+      display: flex;
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(
-        auto-fit,
-        minmax(190px, 1fr)
-      );
+      align-items: center;
+
       gap: 12px;
+
+      margin-bottom: 30px;
+
+      padding: 0 8px;
+
     }
 
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 6px;
-      color: #4b5563;
+
+    .brand-icon {
+
+      width: 42px;
+
+      height: 42px;
+
+      border-radius: 12px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #2563eb,
+          #06b6d4
+        );
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      font-size: 21px;
+
     }
 
-    input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 7px;
-    }
 
-    button {
-      border: none;
-      border-radius: 8px;
-      padding: 11px 18px;
-      cursor: pointer;
-      background: #0f4c81;
+    .brand h2 {
+
+      font-size: 17px;
+
       color: white;
-      margin: 5px 5px 5px 0;
+
     }
 
-    button:hover {
-      opacity: 0.9;
+
+    .brand p {
+
+      color: #94a3b8;
+
+      font-size: 11px;
+
+      margin-top: 3px;
+
     }
 
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+
+    .menu-title {
+
+      color: #64748b;
+
+      font-size: 10px;
+
+      text-transform: uppercase;
+
+      letter-spacing: 1px;
+
+      margin: 0 10px 8px;
+
     }
+
+
+    .menu {
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 5px;
+
+    }
+
+
+    .menu a {
+
+      text-decoration: none;
+
+      color: #94a3b8;
+
+      padding: 12px 13px;
+
+      border-radius: 9px;
+
+      font-size: 13px;
+
+      display: flex;
+
+      gap: 12px;
+
+      align-items: center;
+
+    }
+
+
+    .menu a:hover {
+
+      background: #1e293b;
+
+      color: white;
+
+    }
+
+
+    .menu a.active {
+
+      background: #1d4ed8;
+
+      color: white;
+
+    }
+
+
+    .main {
+
+      margin-left: 250px;
+
+      width:
+        calc(100% - 250px);
+
+      padding: 25px;
+
+    }
+
+
+    .topbar {
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      margin-bottom: 22px;
+
+      gap: 15px;
+
+    }
+
+
+    h1 {
+
+      color: white;
+
+      font-size: 25px;
+
+      margin-bottom: 5px;
+
+    }
+
+
+    .subtitle {
+
+      color: #64748b;
+
+      font-size: 12px;
+
+    }
+
 
     .status {
-      padding: 12px;
-      border-radius: 8px;
-      background: #eef6ff;
-      margin-top: 10px;
-      white-space: pre-line;
+
+      background: #0f172a;
+
+      border:
+        1px solid #1f2937;
+
+      border-radius: 9px;
+
+      padding: 10px 14px;
+
+      font-size: 11px;
+
+      color: #94a3b8;
+
     }
+
+
+    .status span {
+
+      color: #22c55e;
+
+      font-weight: bold;
+
+    }
+
+
+    .grid {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(4, 1fr);
+
+      gap: 15px;
+
+      margin-bottom: 18px;
+
+    }
+
+
+    .card {
+
+      background: #111827;
+
+      border:
+        1px solid #1f2937;
+
+      border-radius: 12px;
+
+      padding: 18px;
+
+    }
+
+
+    .label {
+
+      color: #64748b;
+
+      font-size: 11px;
+
+      margin-bottom: 10px;
+
+    }
+
+
+    .value {
+
+      color: white;
+
+      font-size: 25px;
+
+      font-weight: bold;
+
+    }
+
+
+    .unit {
+
+      color: #64748b;
+
+      font-size: 11px;
+
+    }
+
+
+    .panel {
+
+      background: #111827;
+
+      border:
+        1px solid #1f2937;
+
+      border-radius: 12px;
+
+      padding: 18px;
+
+      margin-bottom: 18px;
+
+    }
+
+
+    .panel-title {
+
+      color: white;
+
+      font-size: 14px;
+
+      font-weight: 600;
+
+      margin-bottom: 5px;
+
+    }
+
+
+    .panel-subtitle {
+
+      color: #64748b;
+
+      font-size: 10px;
+
+      margin-bottom: 18px;
+
+    }
+
+
+    .controls {
+
+      display: flex;
+
+      gap: 10px;
+
+      flex-wrap: wrap;
+
+    }
+
+
+    button {
+
+      border: 0;
+
+      border-radius: 8px;
+
+      padding: 10px 15px;
+
+      cursor: pointer;
+
+      color: white;
+
+      font-weight: 600;
+
+    }
+
+
+    .load-btn {
+
+      background: #166534;
+
+    }
+
+
+    .train-btn {
+
+      background: #2563eb;
+
+    }
+
+
+    .predict-btn {
+
+      background: #9333ea;
+
+    }
+
+
+    .download-btn {
+
+      background: #475569;
+
+    }
+
+
+    button:disabled {
+
+      opacity: 0.45;
+
+      cursor: not-allowed;
+
+    }
+
 
     .progress {
-      width: 100%;
-      height: 12px;
-      background: #e5e7eb;
+
+      margin-top: 15px;
+
+      height: 9px;
+
+      background: #0f172a;
+
       border-radius: 20px;
+
       overflow: hidden;
-      margin-top: 10px;
+
     }
 
-    .bar {
-      height: 100%;
+
+    .progress-bar {
+
       width: 0%;
-      background: #0f4c81;
+
+      height: 100%;
+
+      background: #2563eb;
+
       transition: width 0.2s;
+
     }
+
+
+    #trainingStatus {
+
+      margin-top: 10px;
+
+      color: #94a3b8;
+
+      font-size: 11px;
+
+    }
+
+
+    .metrics {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(6, 1fr);
+
+      gap: 10px;
+
+    }
+
 
     .metric {
-      padding: 14px;
-      background: #f8fafc;
-      border-radius: 8px;
+
+      background: #0f172a;
+
+      border:
+        1px solid #1e293b;
+
+      border-radius: 9px;
+
+      padding: 13px;
+
     }
 
-    .metric b {
-      display: block;
-      font-size: 20px;
-      margin-top: 5px;
-    }
 
-    .small {
-      font-size: 12px;
+    .metric-name {
+
       color: #64748b;
+
+      font-size: 9px;
+
+      margin-bottom: 7px;
+
     }
 
-    .table-wrap {
-      overflow-x: auto;
-      max-height: 500px;
-      overflow-y: auto;
+
+    .metric-value {
+
+      color: white;
+
+      font-size: 16px;
+
+      font-weight: bold;
+
     }
+
+
+    .table-wrapper {
+
+      overflow-x: auto;
+
+    }
+
 
     table {
+
       width: 100%;
+
+      min-width: 850px;
+
       border-collapse: collapse;
-      font-size: 13px;
+
     }
 
-    th,
-    td {
-      padding: 9px;
-      border-bottom: 1px solid #e5e7eb;
-      text-align: right;
-      white-space: nowrap;
-    }
 
     th {
-      position: sticky;
-      top: 0;
-      background: #eef2f7;
-    }
 
-    th:first-child,
-    td:first-child {
       text-align: left;
+
+      color: #64748b;
+
+      font-size: 10px;
+
+      padding: 11px;
+
+      border-bottom:
+        1px solid #1f2937;
+
     }
 
-    canvas {
-      width: 100%;
-      max-height: 430px;
+
+    td {
+
+      color: #cbd5e1;
+
+      font-size: 11px;
+
+      padding: 11px;
+
+      border-bottom:
+        1px solid #172033;
+
     }
 
-    .warning {
-      background: #fff7ed;
-      color: #9a3412;
-      padding: 12px;
+
+    tr:hover {
+
+      background: #0f172a;
+
+    }
+
+
+    .empty {
+
+      text-align: center;
+
+      color: #64748b;
+
+      padding: 25px;
+
+    }
+
+
+    .log {
+
+      background: #020617;
+
+      border:
+        1px solid #1e293b;
+
       border-radius: 8px;
-      margin-top: 10px;
+
+      padding: 12px;
+
+      height: 160px;
+
+      overflow-y: auto;
+
+      font-family: monospace;
+
+      font-size: 10px;
+
+      color: #94a3b8;
+
+      white-space: pre-wrap;
+
     }
+
+
+    @media(max-width:1000px) {
+
+      .grid {
+
+        grid-template-columns:
+          repeat(2, 1fr);
+
+      }
+
+
+      .metrics {
+
+        grid-template-columns:
+          repeat(3, 1fr);
+
+      }
+
+    }
+
+
+    @media(max-width:700px) {
+
+      .sidebar {
+
+        width: 70px;
+
+        padding: 18px 10px;
+
+      }
+
+
+      .brand h2,
+      .brand p,
+      .menu-title,
+      .menu a span:not(.icon) {
+
+        display: none;
+
+      }
+
+
+      .brand {
+
+        justify-content: center;
+
+      }
+
+
+      .menu a {
+
+        justify-content: center;
+
+      }
+
+
+      .main {
+
+        margin-left: 70px;
+
+        width:
+          calc(100% - 70px);
+
+        padding: 16px;
+
+      }
+
+
+      .grid {
+
+        grid-template-columns: 1fr;
+
+      }
+
+
+      .metrics {
+
+        grid-template-columns:
+          repeat(2, 1fr);
+
+      }
+
+
+      .topbar {
+
+        align-items: flex-start;
+
+        flex-direction: column;
+
+      }
+
+    }
+
   </style>
+
 </head>
+
 
 <body>
 
-<header>
-  <h1>Prediksi LSTM Monitoring Pesisir</h1>
-  <div>Prediksi 7 Hari Menggunakan Data Historis Firebase</div>
-</header>
 
-<div class="container">
-
-  <!-- KONFIGURASI -->
-  <div class="card">
-
-    <h2>Konfigurasi Firebase</h2>
-
-    <label>
-      Firebase Realtime Database URL
-    </label>
-
-    <input
-      id="firebaseUrl"
-      value="https://arah-angin-76f91-default-rtdb.firebaseio.com"
-    >
-
-    <div class="small">
-      Data dibaca dari:
-      <b>/cuaca/history</b>
-    </div>
-
-    <br>
-
-    <button id="loadBtn">
-      1. Ambil Data Firebase
-    </button>
-
-    <button id="trainBtn" disabled>
-      2. Latih LSTM
-    </button>
-
-    <button id="forecastBtn" disabled>
-      3. Prediksi 7 Hari
-    </button>
-
-    <button id="downloadBtn" disabled>
-      Download CSV
-    </button>
-
-    <div class="progress">
-      <div id="progressBar" class="bar"></div>
-    </div>
-
-    <div id="status" class="status">
-      Menunggu proses...
-    </div>
-
-  </div>
+<div class="app">
 
 
-  <!-- INFORMASI DATA -->
-  <div class="card">
+  <!-- SIDEBAR -->
 
-    <h2>Informasi Data</h2>
+  <aside class="sidebar">
 
-    <div id="info" class="grid"></div>
+    <div class="brand">
 
-  </div>
+      <div class="brand-icon">
+        🌊
+      </div>
 
+      <div>
 
-  <!-- EVALUASI -->
-  <div class="card">
+        <h2>
+          Monitoring Pesisir
+        </h2>
 
-    <h2>Evaluasi Model LSTM</h2>
+        <p>
+          IoT Environmental System
+        </p>
 
-    <div id="metrics" class="grid"></div>
-
-  </div>
-
-
-  <!-- GRAFIK -->
-  <div class="card">
-
-    <h2>Grafik Prediksi 7 Hari</h2>
-
-    <canvas id="forecastChart"></canvas>
-
-  </div>
-
-
-  <!-- TABEL -->
-  <div class="card">
-
-    <h2>Hasil Prediksi</h2>
-
-    <div class="table-wrap">
-
-      <table id="forecastTable">
-
-        <thead>
-
-          <tr>
-            <th>Waktu</th>
-            <th>Suhu (°C)</th>
-            <th>Kelembapan (%)</th>
-            <th>Kecepatan Angin (m/s)</th>
-            <th>Arah Angin (°)</th>
-            <th>Tinggi Muka Air (m)</th>
-          </tr>
-
-        </thead>
-
-        <tbody></tbody>
-
-      </table>
+      </div>
 
     </div>
 
-  </div>
+
+    <div class="menu-title">
+      Menu
+    </div>
+
+
+    <nav class="menu">
+
+      <a href="index.html">
+
+        <span class="icon">
+          📊
+        </span>
+
+        <span>
+          Dashboard
+        </span>
+
+      </a>
+
+
+      <a
+        href="lstm.html"
+        class="active">
+
+        <span class="icon">
+          🧠
+        </span>
+
+        <span>
+          Prediksi LSTM
+        </span>
+
+      </a>
+
+
+      <a href="index.html#environmentSection">
+
+        <span class="icon">
+          🌡️
+        </span>
+
+        <span>
+          Lingkungan
+        </span>
+
+      </a>
+
+
+      <a href="index.html#seaSection">
+
+        <span class="icon">
+          🌊
+        </span>
+
+        <span>
+          Pasang Surut
+        </span>
+
+      </a>
+
+
+      <a href="index.html#historySection">
+
+        <span class="icon">
+          📋
+        </span>
+
+        <span>
+          History
+        </span>
+
+      </a>
+
+    </nav>
+
+  </aside>
+
+
+  <!-- MAIN -->
+
+  <main class="main">
+
+
+    <div class="topbar">
+
+      <div>
+
+        <h1>
+          Prediksi LSTM
+        </h1>
+
+        <div class="subtitle">
+
+          Prediksi kondisi lingkungan dan tinggi muka air
+          menggunakan data dari Firebase
+
+        </div>
+
+      </div>
+
+
+      <div class="status">
+
+        Firebase:
+
+        <span id="firebaseStatus">
+          Belum membaca
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <!-- INFO DATA -->
+
+    <section class="grid">
+
+
+      <div class="card">
+
+        <div class="label">
+          DATA FIREBASE
+        </div>
+
+        <div
+          class="value"
+          id="firebaseCount">
+
+          --
+
+        </div>
+
+        <div class="unit">
+          record
+
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="label">
+          DATA PER JAM
+        </div>
+
+        <div
+          class="value"
+          id="hourlyCount">
+
+          --
+
+        </div>
+
+        <div class="unit">
+          data
+
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="label">
+          DATA AWAL
+        </div>
+
+        <div
+          class="value"
+          id="firstDate"
+          style="font-size:14px;">
+
+          --
+
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="label">
+          DATA TERAKHIR
+        </div>
+
+        <div
+          class="value"
+          id="lastDate"
+          style="font-size:14px;">
+
+          --
+
+        </div>
+
+      </div>
+
+
+    </section>
+
+
+    <!-- TRAINING -->
+
+    <section class="panel">
+
+
+      <div class="panel-title">
+        Training Model LSTM
+      </div>
+
+
+      <div class="panel-subtitle">
+
+        Data dari Firebase akan diproses menjadi data per jam
+        sebelum digunakan untuk training.
+
+      </div>
+
+
+      <div class="controls">
+
+
+        <button
+          class="load-btn"
+          onclick="loadData()">
+
+          1. Baca Firebase
+
+        </button>
+
+
+        <button
+          class="train-btn"
+          id="trainButton"
+          onclick="startTraining()"
+          disabled>
+
+          2. Training LSTM
+
+        </button>
+
+
+        <button
+          class="predict-btn"
+          id="predictButton"
+          onclick="startForecast()"
+          disabled>
+
+          3. Prediksi 7 Hari
+
+        </button>
+
+
+        <button
+          class="download-btn"
+          id="downloadButton"
+          onclick="downloadForecast()"
+          disabled>
+
+          ⬇ Download CSV
+
+        </button>
+
+
+      </div>
+
+
+      <div class="progress">
+
+        <div
+          class="progress-bar"
+          id="progressBar">
+        </div>
+
+      </div>
+
+
+      <div id="trainingStatus">
+
+        Menunggu proses...
+
+      </div>
+
+
+    </section>
+
+
+    <!-- METRIK -->
+
+    <section class="panel">
+
+
+      <div class="panel-title">
+        Evaluasi Model
+      </div>
+
+
+      <div class="panel-subtitle">
+
+        Hasil pengujian data testing LSTM
+
+      </div>
+
+
+      <div
+        class="metrics"
+        id="metricsContainer">
+
+
+        <div class="metric">
+
+          <div class="metric-name">
+            SUHU RMSE
+          </div>
+
+          <div
+            class="metric-value"
+            id="rmseSuhu">
+
+            --
+
+          </div>
+
+        </div>
+
+
+        <div class="metric">
+
+          <div class="metric-name">
+            KELEMBAPAN RMSE
+          </div>
+
+          <div
+            class="metric-value"
+            id="rmseHumidity">
+
+            --
+
+          </div>
+
+        </div>
+
+
+        <div class="metric">
+
+          <div class="metric-name">
+            ANGIN RMSE
+          </div>
+
+          <div
+            class="metric-value"
+            id="rmseWind">
+
+            --
+
+          </div>
+
+        </div>
+
+
+        <div class="metric">
+
+          <div class="metric-name">
+            TINGGI AIR RMSE
+          </div>
+
+          <div
+            class="metric-value"
+            id="rmseWater">
+
+            --
+
+          </div>
+
+        </div>
+
+
+        <div class="metric">
+
+          <div class="metric-name">
+            ARAH MAE
+          </div>
+
+          <div
+            class="metric-value"
+            id="maeDirection">
+
+            --
+
+          </div>
+
+        </div>
+
+
+        <div class="metric">
+
+          <div class="metric-name">
+            EPOCH TERBAIK
+          </div>
+
+          <div
+            class="metric-value"
+            id="bestEpoch">
+
+            --
+
+          </div>
+
+        </div>
+
+
+      </div>
+
+
+    </section>
+
+
+    <!-- LOG -->
+
+    <section class="panel">
+
+
+      <div class="panel-title">
+        Log Proses
+      </div>
+
+
+      <div class="panel-subtitle">
+        Informasi proses pembacaan data dan training
+      </div>
+
+
+      <div
+        class="log"
+        id="log">
+
+        Belum ada proses.
+
+      </div>
+
+
+    </section>
+
+
+    <!-- FORECAST -->
+
+    <section class="panel">
+
+
+      <div class="panel-title">
+        Prediksi 7 Hari
+      </div>
+
+
+      <div class="panel-subtitle">
+
+        Hasil prediksi 168 jam ke depan
+
+      </div>
+
+
+      <div class="table-wrapper">
+
+
+        <table>
+
+
+          <thead>
+
+            <tr>
+
+              <th>
+                No
+              </th>
+
+              <th>
+                Waktu
+              </th>
+
+              <th>
+                Suhu
+              </th>
+
+              <th>
+                Kelembapan
+              </th>
+
+              <th>
+                Kecepatan Angin
+              </th>
+
+              <th>
+                Arah Angin
+              </th>
+
+              <th>
+                Tinggi Muka Air
+              </th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody
+            id="forecastTable">
+
+            <tr>
+
+              <td
+                colspan="7"
+                class="empty">
+
+                Belum ada hasil prediksi.
+
+              </td>
+
+            </tr>
+
+          </tbody>
+
+
+        </table>
+
+      </div>
+
+    </section>
+
+
+  </main>
 
 </div>
 
 
-<script src="./lstm.js"></script>
-
-
 <script>
 
-let forecastData = [];
-let modelReady = false;
 
-const $ = id => document.getElementById(id);
+  /* =====================================================
+     GLOBAL
+  ===================================================== */
 
+  let rawFirebaseData = null;
 
-// ===============================
-// STATUS
-// ===============================
+  let convertedData = [];
 
-function setStatus(message) {
+  let hourlyData = [];
 
-  $("status").textContent = message;
+  let trainingResult = null;
 
-}
-
-
-// ===============================
-// PROGRESS
-// ===============================
-
-function setProgress(value) {
-
-  $("progressBar").style.width =
-    Math.max(0, Math.min(100, value)) + "%";
-
-}
+  let forecastData = [];
 
 
-// ===============================
-// INFO DATA
-// ===============================
+  /* =====================================================
+     LOG
+  ===================================================== */
 
-function showInfo(data) {
+  function log(message) {
 
-  if (!data.length) return;
-
-  const dates =
-    data
-      .map(x => x.datetime)
-      .filter(Boolean)
-      .sort();
-
-  $("info").innerHTML = `
-
-    <div class="metric">
-      Jumlah Data
-      <b>${data.length}</b>
-    </div>
-
-    <div class="metric">
-      Data Awal
-      <b>${dates[0] || "-"}</b>
-    </div>
-
-    <div class="metric">
-      Data Akhir
-      <b>${dates[dates.length - 1] || "-"}</b>
-    </div>
-
-    <div class="metric">
-      Input LSTM
-      <b>24 Jam</b>
-    </div>
-
-    <div class="metric">
-      Prediksi
-      <b>168 Jam</b>
-    </div>
-
-  `;
-
-}
+    const element =
+      document.getElementById(
+        "log"
+      );
 
 
-// ===============================
-// METRICS
-// ===============================
+    const time =
+      new Date()
+        .toLocaleTimeString(
+          "id-ID"
+        );
 
-function showMetrics(metrics) {
 
-  if (!metrics) return;
+    element.textContent +=
 
-  const names = {
+      "[" +
+      time +
+      "] " +
+      message +
+      "\n";
 
-    suhu: "Suhu",
 
-    kelembapan:
-      "Kelembapan",
-
-    kecepatan_angin:
-      "Kecepatan Angin",
-
-    tinggi_muka_air:
-      "Tinggi Muka Air"
-
-  };
-
-  let html = "";
-
-  for (const key in metrics) {
-
-    if (key === "arah_angin")
-      continue;
-
-    const m = metrics[key];
-
-    html += `
-
-      <div class="metric">
-
-        ${names[key] || key}
-
-        <b>
-          MAE :
-          ${m.MAE.toFixed(4)}
-        </b>
-
-        <div class="small">
-          RMSE :
-          ${m.RMSE.toFixed(4)}
-        </div>
-
-        <div class="small">
-          R² :
-          ${m.R2.toFixed(4)}
-        </div>
-
-      </div>
-
-    `;
+    element.scrollTop =
+      element.scrollHeight;
 
   }
 
-  if (metrics.arah_angin) {
 
-    html += `
+  /* =====================================================
+     STATUS
+  ===================================================== */
 
-      <div class="metric">
-
-        Arah Angin
-
-        <b>
-          MAE :
-          ${metrics.arah_angin.MAE.toFixed(2)}°
-        </b>
-
-        <div class="small">
-          RMSE :
-          ${metrics.arah_angin.RMSE.toFixed(2)}°
-        </div>
-
-      </div>
-
-    `;
-
-  }
-
-  $("metrics").innerHTML = html;
-
-}
-
-
-// ===============================
-// GRAFIK
-// ===============================
-
-function drawChart(data) {
-
-  const canvas =
-    $("forecastChart");
-
-  const ctx =
-    canvas.getContext("2d");
-
-  const width =
-    canvas.clientWidth || 1000;
-
-  const height = 400;
-
-  const dpr =
-    window.devicePixelRatio || 1;
-
-  canvas.width =
-    width * dpr;
-
-  canvas.height =
-    height * dpr;
-
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(
-    0,
-    0,
-    width,
-    height
-  );
-
-
-  const series = [
-
-    ["Suhu", "suhu"],
-
-    ["Kelembapan", "kelembapan"],
-
-    [
-      "Kecepatan Angin",
-      "kecepatan_angin"
-    ],
-
-    [
-      "Tinggi Muka Air",
-      "tinggi_muka_air"
-    ]
-
-  ];
-
-
-  const values = [];
-
-  series.forEach(
-    ([_, key]) => {
-
-      data.forEach(x => {
-
-        const v =
-          Number(x[key]);
-
-        if (
-          Number.isFinite(v)
-        ) {
-          values.push(v);
-        }
-
-      });
-
-    }
-  );
-
-
-  if (!values.length)
-    return;
-
-
-  const min =
-    Math.min(...values);
-
-  const max =
-    Math.max(...values);
-
-  const range =
-    (max - min) || 1;
-
-
-  const left = 55;
-  const right = 15;
-  const top = 20;
-  const bottom = 45;
-
-  const plotW =
-    width - left - right;
-
-  const plotH =
-    height - top - bottom;
-
-
-  // GRID
-
-  ctx.strokeStyle =
-    "#cbd5e1";
-
-  ctx.lineWidth = 1;
-
-
-  for (
-    let i = 0;
-    i <= 5;
-    i++
+  function setStatus(
+    text
   ) {
 
-    const y =
-      top + plotH * i / 5;
+    document.getElementById(
+      "firebaseStatus"
+    ).textContent =
+      text;
 
-    ctx.beginPath();
-
-    ctx.moveTo(
-      left,
-      y
-    );
-
-    ctx.lineTo(
-      left + plotW,
-      y
-    );
-
-    ctx.stroke();
+  }
 
 
-    const value =
-      max -
-      range * i / 5;
+  /* =====================================================
+     FORMAT DATE
+  ===================================================== */
 
-    ctx.fillStyle =
-      "#64748b";
+  function formatDate(
+    date
+  ) {
 
-    ctx.font =
-      "11px Arial";
+    if (
+      !date
+    ) {
 
-    ctx.fillText(
-      value.toFixed(1),
-      5,
-      y + 4
+      return "--";
+
+    }
+
+
+    return new Date(
+      date
+    ).toLocaleString(
+      "id-ID"
     );
 
   }
 
 
-  // DATA
+  /* =====================================================
+     BACA FIREBASE
+  ===================================================== */
 
-  series.forEach(
-    ([name, key], index) => {
+  async function loadData() {
 
-      ctx.beginPath();
+    try {
 
-      let first = true;
-
-      data.forEach(
-        (x, i) => {
-
-          const value =
-            Number(x[key]);
-
-          if (
-            !Number.isFinite(value)
-          ) return;
+      log(
+        "Mulai membaca Firebase..."
+      );
 
 
-          const px =
-            left +
-            plotW *
-            i /
-            Math.max(
-              1,
-              data.length - 1
-            );
+      setStatus(
+        "Membaca..."
+      );
 
 
-          const py =
-            top +
-            (
-              max - value
-            ) /
-            range *
-            plotH;
+      const raw =
+        await LSTM.getFirebaseData();
 
 
-          if (first) {
+      rawFirebaseData =
+        raw;
 
-            ctx.moveTo(
-              px,
-              py
-            );
 
-            first = false;
+      log(
+        "Data Firebase berhasil diterima."
+      );
 
-          } else {
 
-            ctx.lineTo(
-              px,
-              py
-            );
+      /*
+        Konversi data
+      */
+
+      convertedData =
+        LSTM.convertFirebaseData(
+
+          raw,
+
+          {
+
+            sensorHeight:
+              2.5
 
           }
 
-        }
+        );
+
+
+      log(
+
+        "Data valid setelah konversi: " +
+
+        convertedData.length
+
       );
 
 
-      ctx.strokeStyle =
-        `hsl(${index * 80}, 70%, 40%)`;
+      /*
+        Jadikan per jam
+      */
 
-      ctx.lineWidth = 2;
+      hourlyData =
+        LSTM.prepareHourlyData(
 
-      ctx.stroke();
+          convertedData
+
+        );
 
 
-      ctx.fillStyle =
-        "#334155";
+      log(
 
-      ctx.font =
-        "12px Arial";
+        "Data per jam: " +
 
-      ctx.fillText(
-        name,
-        left + index * 130,
-        height - 15
+        hourlyData.length
+
+      );
+
+
+      /*
+        Info
+      */
+
+      const info =
+        LSTM.getDataInfo(
+
+          raw,
+
+          hourlyData
+
+        );
+
+
+      document.getElementById(
+        "firebaseCount"
+      ).textContent =
+        info.firebaseRecords;
+
+
+      document.getElementById(
+        "hourlyCount"
+      ).textContent =
+        info.validRecords;
+
+
+      document.getElementById(
+        "firstDate"
+      ).textContent =
+        formatDate(
+          info.firstDatetime
+        );
+
+
+      document.getElementById(
+        "lastDate"
+      ).textContent =
+        formatDate(
+          info.lastDatetime
+        );
+
+
+      /*
+        Status
+      */
+
+      setStatus(
+        "Terhubung"
+      );
+
+
+      document.getElementById(
+        "trainButton"
+      ).disabled = false;
+
+
+      log(
+        "Data siap digunakan untuk training."
+      );
+
+
+      /*
+        Cek jumlah data
+      */
+
+      if (
+        hourlyData.length < 35
+      ) {
+
+        log(
+
+          "PERINGATAN: data per jam masih sedikit. " +
+
+          "LSTM membutuhkan data historis yang cukup."
+
+        );
+
+      }
+
+
+    }
+
+    catch(error) {
+
+      console.error(
+        error
+      );
+
+
+      setStatus(
+        "Gagal"
+      );
+
+
+      log(
+
+        "ERROR: " +
+        error.message
+
+      );
+
+
+      alert(
+        error.message
       );
 
     }
-  );
 
-}
-
-
-// ===============================
-// TABEL
-// ===============================
-
-function renderTable(data) {
-
-  const tbody =
-    $("forecastTable")
-      .querySelector("tbody");
+  }
 
 
-  tbody.innerHTML =
-    data.map(x => `
+  /* =====================================================
+     TRAINING
+  ===================================================== */
 
-      <tr>
+  async function startTraining() {
 
-        <td>
-          ${x.datetime}
-        </td>
+    if (
+      hourlyData.length === 0
+    ) {
 
-        <td>
-          ${Number(x.suhu).toFixed(2)}
-        </td>
+      alert(
+        "Baca Firebase terlebih dahulu."
+      );
 
-        <td>
-          ${Number(
-            x.kelembapan
-          ).toFixed(2)}
-        </td>
+      return;
 
-        <td>
-          ${Number(
-            x.kecepatan_angin
-          ).toFixed(2)}
-        </td>
-
-        <td>
-          ${Number(
-            x.arah_angin
-          ).toFixed(1)}
-        </td>
-
-        <td>
-          ${Number(
-            x.tinggi_muka_air
-          ).toFixed(3)}
-        </td>
-
-      </tr>
-
-    `).join("");
-
-}
+    }
 
 
-// ===============================
-// AMBIL DATA FIREBASE
-// ===============================
+    try {
 
-$("loadBtn").onclick =
-async function () {
+      document.getElementById(
+        "trainButton"
+      ).disabled = true;
 
-  try {
 
-    $("loadBtn").disabled = true;
+      document.getElementById(
+        "predictButton"
+      ).disabled = true;
 
-    setProgress(10);
 
-    setStatus(
-      "Mengambil data dari Firebase..."
+      document.getElementById(
+        "downloadButton"
+      ).disabled = true;
+
+
+      log(
+        "Memulai training LSTM..."
+      );
+
+
+      document.getElementById(
+        "trainingStatus"
+      ).textContent =
+        "Training dimulai...";
+
+
+      const startTime =
+        Date.now();
+
+
+      trainingResult =
+        await LSTM.train(
+
+          hourlyData,
+
+          {
+
+            lookback:
+              24,
+
+            forecastHours:
+              168,
+
+            epochs:
+              100,
+
+            batchSize:
+              16,
+
+            learningRate:
+              0.001,
+
+            lstmUnits:
+              32,
+
+            denseUnits:
+              16,
+
+            validationSplit:
+              0.20,
+
+            onEpochEnd:
+
+              function (
+                epoch,
+                logs
+              ) {
+
+
+                const percent =
+                  Math.round(
+
+                    epoch /
+                    100 *
+                    100
+
+                  );
+
+
+                document.getElementById(
+                  "progressBar"
+                ).style.width =
+                  percent +
+                  "%";
+
+
+                const loss =
+                  logs.loss !== undefined
+
+                    ? logs.loss.toFixed(
+                        6
+                      )
+
+                    : "--";
+
+
+                const valLoss =
+                  logs.val_loss !== undefined
+
+                    ? logs.val_loss.toFixed(
+                        6
+                      )
+
+                    : "--";
+
+
+                document.getElementById(
+                  "trainingStatus"
+                ).textContent =
+
+                  "Epoch " +
+                  epoch +
+                  " / 100 | Loss: " +
+                  loss +
+                  " | Val Loss: " +
+                  valLoss;
+
+
+                if (
+                  epoch === 1 ||
+                  epoch % 10 === 0
+                ) {
+
+                  log(
+
+                    "Epoch " +
+                    epoch +
+                    " | Loss=" +
+                    loss +
+                    " | Val Loss=" +
+                    valLoss
+
+                  );
+
+                }
+
+              }
+
+          }
+
+        );
+
+
+      const elapsed =
+        (
+          Date.now() -
+          startTime
+        ) / 1000;
+
+
+      log(
+
+        "Training selesai dalam " +
+        elapsed.toFixed(1) +
+        " detik."
+
+      );
+
+
+      /*
+        METRIK
+      */
+
+      showMetrics(
+        trainingResult
+      );
+
+
+      document.getElementById(
+        "predictButton"
+      ).disabled = false;
+
+
+      document.getElementById(
+        "trainButton"
+      ).disabled = false;
+
+
+      document.getElementById(
+        "progressBar"
+      ).style.width =
+        "100%";
+
+
+      document.getElementById(
+        "trainingStatus"
+      ).textContent =
+        "Training selesai.";
+
+
+    }
+
+    catch(error) {
+
+      console.error(
+        error
+      );
+
+
+      log(
+
+        "ERROR TRAINING: " +
+        error.message
+
+      );
+
+
+      document.getElementById(
+        "trainingStatus"
+      ).textContent =
+        "Training gagal.";
+
+
+      document.getElementById(
+        "trainButton"
+      ).disabled = false;
+
+    }
+
+  }
+
+
+  /* =====================================================
+     TAMPILKAN METRIK
+  ===================================================== */
+
+  function showMetrics(
+    result
+  ) {
+
+    const metrics =
+      result.metrics;
+
+
+    document.getElementById(
+      "rmseSuhu"
+    ).textContent =
+
+      metrics.suhu
+
+        ? metrics.suhu.RMSE.toFixed(4)
+
+        : "--";
+
+
+    document.getElementById(
+      "rmseHumidity"
+    ).textContent =
+
+      metrics.kelembapan
+
+        ? metrics.kelembapan.RMSE.toFixed(4)
+
+        : "--";
+
+
+    document.getElementById(
+      "rmseWind"
+    ).textContent =
+
+      metrics.kecepatan_angin
+
+        ? metrics.kecepatan_angin.RMSE.toFixed(4)
+
+        : "--";
+
+
+    document.getElementById(
+      "rmseWater"
+    ).textContent =
+
+      metrics.tinggi_muka_air
+
+        ? metrics.tinggi_muka_air.RMSE.toFixed(4)
+
+        : "--";
+
+
+    document.getElementById(
+      "maeDirection"
+    ).textContent =
+
+      metrics.arah_angin
+
+        ? metrics.arah_angin.MAE.toFixed(2) +
+          "°"
+
+        : "--";
+
+
+    document.getElementById(
+      "bestEpoch"
+    ).textContent =
+
+      result.bestEpoch ??
+      "--";
+
+
+    log(
+      "Evaluasi model selesai."
     );
 
 
-    const baseUrl =
-      $("firebaseUrl")
-        .value
-        .trim()
-        .replace(/\/+$/, "");
+    log(
+
+      "RMSE suhu: " +
+
+      (
+        metrics.suhu?.RMSE ??
+        0
+      ).toFixed(4)
+
+    );
 
 
-    const raw =
-      await LSTM.getFirebaseData(
-        baseUrl +
-        "/cuaca/history.json"
+    log(
+
+      "RMSE kelembapan: " +
+
+      (
+        metrics.kelembapan?.RMSE ??
+        0
+      ).toFixed(4)
+
+    );
+
+
+    log(
+
+      "RMSE kecepatan angin: " +
+
+      (
+        metrics.kecepatan_angin?.RMSE ??
+        0
+      ).toFixed(4)
+
+    );
+
+
+    log(
+
+      "RMSE tinggi muka air: " +
+
+      (
+        metrics.tinggi_muka_air?.RMSE ??
+        0
+      ).toFixed(4)
+
+    );
+
+
+    log(
+
+      "MAE arah angin: " +
+
+      (
+        metrics.arah_angin?.MAE ??
+        0
+      ).toFixed(2) +
+      "°"
+
+    );
+
+  }
+
+
+  /* =====================================================
+     PREDIKSI
+  ===================================================== */
+
+  async function startForecast() {
+
+    if (
+      !trainingResult
+    ) {
+
+      alert(
+        "Training LSTM belum selesai."
+      );
+
+      return;
+
+    }
+
+
+    try {
+
+      document.getElementById(
+        "predictButton"
+      ).disabled = true;
+
+
+      log(
+        "Memulai prediksi 168 jam..."
       );
 
 
-    setProgress(30);
+      forecastData =
+        await LSTM.forecast(
+
+          hourlyData,
+
+          168,
+
+          trainingResult
+
+        );
 
 
-    const data =
-      LSTM.convertFirebaseData(
-        raw,
-        {
-          sensorHeight: 2.5
-        }
+      log(
+
+        "Prediksi selesai: " +
+        forecastData.length +
+        " jam."
+
       );
 
 
-    const hourly =
-      LSTM.prepareHourlyData(
-        data
+      showForecastTable();
+
+
+      document.getElementById(
+        "downloadButton"
+      ).disabled = false;
+
+
+      document.getElementById(
+        "predictButton"
+      ).disabled = false;
+
+
+    }
+
+    catch(error) {
+
+      console.error(
+        error
+      );
+
+
+      log(
+
+        "ERROR PREDIKSI: " +
+        error.message
+
+      );
+
+
+      document.getElementById(
+        "predictButton"
+      ).disabled = false;
+
+    }
+
+  }
+
+
+  /* =====================================================
+     TABEL FORECAST
+  ===================================================== */
+
+  function showForecastTable() {
+
+    const tbody =
+      document.getElementById(
+        "forecastTable"
       );
 
 
     if (
-      hourly.length < 30
+      forecastData.length === 0
     ) {
 
-      throw new Error(
-        "Data terlalu sedikit untuk training LSTM. Gunakan data historis yang lebih banyak."
-      );
+      tbody.innerHTML = `
+
+        <tr>
+
+          <td
+            colspan="7"
+            class="empty">
+
+            Tidak ada data prediksi.
+
+          </td>
+
+        </tr>
+
+      `;
+
+      return;
 
     }
 
 
-    window.lstmData =
-      hourly;
+    let html = "";
 
 
-    showInfo(
-      hourly
-    );
+    forecastData.forEach(
 
+      function (
+        row,
+        index
+      ) {
 
-    $("trainBtn").disabled =
-      false;
 
+        html += `
 
-    setProgress(40);
+          <tr>
 
+            <td>
+              ${index + 1}
+            </td>
 
-    setStatus(
+            <td>
+              ${row.datetime}
+            </td>
 
-      "Data berhasil dimuat.\n\n" +
+            <td>
+              ${Number(row.suhu).toFixed(2)}
+              °C
+            </td>
 
-      "Data mentah : " +
-      data.length +
-      "\n" +
+            <td>
+              ${Number(row.kelembapan).toFixed(2)}
+              %
+            </td>
 
-      "Data per jam : " +
-      hourly.length +
-      "\n\n" +
+            <td>
+              ${Number(row.kecepatan_angin).toFixed(2)}
+              m/s
+            </td>
 
-      "Silakan klik Latih LSTM."
+            <td>
+              ${Number(row.arah_angin).toFixed(2)}
+              °
+            </td>
 
-    );
+            <td>
+              ${Number(row.tinggi_muka_air).toFixed(2)}
+              m
+            </td>
 
+          </tr>
 
-  } catch (error) {
+        `;
 
-    console.error(error);
-
-    setStatus(
-      "Gagal mengambil data:\n" +
-      error.message
-    );
-
-    $("loadBtn").disabled =
-      false;
-
-  }
-
-};
-
-
-// ===============================
-// TRAINING
-// ===============================
-
-$("trainBtn").onclick =
-async function () {
-
-  try {
-
-    $("trainBtn").disabled =
-      true;
-
-
-    setStatus(
-      "LSTM sedang dilatih...\n\n" +
-      "Proses dapat membutuhkan waktu beberapa saat."
-    );
-
-
-    const result =
-      await LSTM.train(
-        window.lstmData,
-        {
-
-          epochs: 200,
-
-          batchSize: 16,
-
-          lookback: 24,
-
-          onEpochEnd:
-          function (
-            epoch,
-            logs
-          ) {
-
-            const progress =
-              40 +
-              (
-                epoch / 200
-              ) * 35;
-
-            setProgress(
-              progress
-            );
-
-            setStatus(
-
-              "Training LSTM...\n" +
-
-              "Epoch : " +
-              epoch +
-              " / 200\n" +
-
-              "Loss : " +
-              Number(
-                logs.loss
-              ).toFixed(6) +
-
-              "\nVal Loss : " +
-              Number(
-                logs.val_loss
-              ).toFixed(6)
-
-            );
-
-          }
-
-        }
-      );
-
-
-    window.lstmTraining =
-      result;
-
-
-    modelReady = true;
-
-
-    showMetrics(
-      result.metrics
-    );
-
-
-    $("forecastBtn")
-      .disabled = false;
-
-
-    setProgress(75);
-
-
-    setStatus(
-
-      "Training LSTM selesai.\n\n" +
-
-      "Epoch terbaik : " +
-      (
-        result.bestEpoch ||
-        "-"
-      ) +
-
-      "\n\n" +
-
-      "Model siap digunakan."
-
-    );
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    setStatus(
-      "Training gagal:\n" +
-      error.message
-    );
-
-    $("trainBtn").disabled =
-      false;
-
-  }
-
-};
-
-
-// ===============================
-// PREDIKSI
-// ===============================
-
-$("forecastBtn").onclick =
-async function () {
-
-  try {
-
-    if (!modelReady) {
-
-      throw new Error(
-        "Model belum selesai dilatih."
-      );
-
-    }
-
-
-    $("forecastBtn")
-      .disabled = true;
-
-
-    setStatus(
-      "Membuat prediksi 168 jam..."
-    );
-
-
-    forecastData =
-      await LSTM.forecast(
-
-        window.lstmData,
-
-        168,
-
-        window.lstmTraining
-
-      );
-
-
-    renderTable(
-      forecastData
-    );
-
-
-    drawChart(
-      forecastData
-    );
-
-
-    $("downloadBtn")
-      .disabled = false;
-
-
-    setProgress(100);
-
-
-    setStatus(
-
-      "Prediksi selesai.\n\n" +
-
-      "Jumlah prediksi : " +
-      forecastData.length +
-      " jam\n\n" +
-
-      "Prediksi 7 hari berhasil dibuat."
-
-    );
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    setStatus(
-      "Prediksi gagal:\n" +
-      error.message
-    );
-
-  } finally {
-
-    $("forecastBtn")
-      .disabled = false;
-
-  }
-
-};
-
-
-// ===============================
-// DOWNLOAD CSV
-// ===============================
-
-$("downloadBtn").onclick =
-function () {
-
-  if (
-    !forecastData.length
-  ) return;
-
-
-  const csv =
-    LSTM.toCSV(
-      forecastData
-    );
-
-
-  const blob =
-    new Blob(
-      [csv],
-      {
-        type:
-          "text/csv;charset=utf-8;"
       }
+
     );
 
 
-  const url =
-    URL.createObjectURL(
-      blob
+    tbody.innerHTML =
+      html;
+
+  }
+
+
+  /* =====================================================
+     DOWNLOAD FORECAST
+  ===================================================== */
+
+  function downloadForecast() {
+
+    if (
+      !forecastData.length
+    ) {
+
+      return;
+
+    }
+
+
+    const csv =
+      LSTM.toCSV(
+        forecastData
+      );
+
+
+    const blob =
+      new Blob(
+
+        [csv],
+
+        {
+          type:
+            "text/csv;charset=utf-8;"
+        }
+
+      );
+
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+
+    link.href =
+      url;
+
+
+    link.download =
+      "prediksi_lstm_7_hari.csv";
+
+
+    document.body.appendChild(
+      link
     );
 
 
-  const a =
-    document.createElement(
-      "a"
+    link.click();
+
+
+    document.body.removeChild(
+      link
     );
 
 
-  a.href = url;
+    URL.revokeObjectURL(
+      url
+    );
 
-  a.download =
-    "forecast_lstm_7_hari.csv";
-
-
-  a.click();
+  }
 
 
-  URL.revokeObjectURL(
-    url
+  /* =====================================================
+     START
+  ===================================================== */
+
+  log(
+    "Halaman LSTM siap."
   );
 
-};
+
+  log(
+    "Sumber data: cuaca/history"
+  );
+
+
+  log(
+    "Lookback: 24 jam"
+  );
+
+
+  log(
+    "Forecast: 168 jam / 7 hari"
+  );
+
 
 </script>
 
+
 </body>
+
 </html>
