@@ -1,16 +1,23 @@
 /* =========================================================
    LSTM.JS
-   TensorFlow.js - Vercel
+   Firebase Realtime Database + TensorFlow.js + Vercel
 
-   Input:
+   Firebase:
+   cuaca/history
+
+   INPUT:
    1. Suhu
    2. Kelembapan
    3. Kecepatan Angin
-   4. Arah Angin
-   5. Tinggi Muka Air Laut
+   4. Arah Angin Sin
+   5. Arah Angin Cos
+   6. Tinggi Muka Air
 
-   Lookback  : 24 jam
-   Forecast  : 168 jam / 7 hari
+   LOOKBACK:
+   24 jam
+
+   FORECAST:
+   168 jam / 7 hari
    ========================================================= */
 
 (function () {
@@ -18,9 +25,22 @@
   "use strict";
 
 
-  // =====================================================
-  // FITUR
-  // =====================================================
+  /* =======================================================
+     KONFIGURASI FIREBASE
+  ======================================================= */
+
+  const FIREBASE_DATABASE_URL =
+    "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+
+  const FIREBASE_HISTORY_URL =
+    FIREBASE_DATABASE_URL +
+    "/cuaca/history.json";
+
+
+  /* =======================================================
+     FITUR LSTM
+  ======================================================= */
 
   const FEATURES = [
 
@@ -56,9 +76,9 @@
   ];
 
 
-  // =====================================================
-  // KONFIGURASI
-  // =====================================================
+  /* =======================================================
+     KONFIGURASI DEFAULT
+  ======================================================= */
 
   const DEFAULT = {
 
@@ -66,7 +86,7 @@
 
     forecastHours: 168,
 
-    epochs: 200,
+    epochs: 100,
 
     batchSize: 16,
 
@@ -81,9 +101,9 @@
   };
 
 
-  // =====================================================
-  // CEK TENSORFLOW
-  // =====================================================
+  /* =======================================================
+     CEK TENSORFLOW
+  ======================================================= */
 
   function requireTF() {
 
@@ -92,7 +112,8 @@
     ) {
 
       throw new Error(
-        "TensorFlow.js belum dimuat."
+        "TensorFlow.js belum dimuat. " +
+        "Tambahkan tensorflow.min.js pada lstm.html."
       );
 
     }
@@ -100,12 +121,12 @@
   }
 
 
-  // =====================================================
-  // FIREBASE
-  // =====================================================
+  /* =======================================================
+     AMBIL DATA FIREBASE
+  ======================================================= */
 
   async function getFirebaseData(
-    url
+    url = FIREBASE_HISTORY_URL
   ) {
 
     const response =
@@ -143,7 +164,7 @@
     ) {
 
       throw new Error(
-        "Firebase tidak mengembalikan data."
+        "Data pada cuaca/history kosong."
       );
 
     }
@@ -154,13 +175,11 @@
   }
 
 
-  // =====================================================
-  // OBJECT FIREBASE → ARRAY
-  // =====================================================
+  /* =======================================================
+     OBJECT FIREBASE → ARRAY
+  ======================================================= */
 
-  function toArray(
-    raw
-  ) {
+  function toArray(raw) {
 
     if (
       Array.isArray(raw)
@@ -221,9 +240,9 @@
   }
 
 
-  // =====================================================
-  // AMBIL ANGKA
-  // =====================================================
+  /* =======================================================
+     ANGKA
+  ======================================================= */
 
   function firstNumber(
     obj,
@@ -266,80 +285,42 @@
   }
 
 
-  // =====================================================
-  // DATETIME
-  // =====================================================
+  /* =======================================================
+     TIMESTAMP
+  ======================================================= */
 
-  function parseDatetime(
-    row
-  ) {
+  function parseDatetime(row) {
 
-    const candidates = [
+    /*
+      Prioritas timestamp Firebase
+    */
 
-      row.Datetime,
-
-      row.datetime,
-
-      row.timestamp,
-
-      row.time,
-
-      row.waktu,
-
-      row.tanggal
-
-    ];
+    const timestamp =
+      firstNumber(
+        row,
+        [
+          "timestamp",
+          "Timestamp"
+        ]
+      );
 
 
-    for (
-      const value of candidates
+    if (
+      timestamp !== null
     ) {
 
-      if (
-        value === undefined ||
-        value === null ||
-        value === ""
-      ) {
+      const milliseconds =
 
-        continue;
+        timestamp < 100000000000
 
-      }
+          ? timestamp * 1000
 
-
-      if (
-        typeof value ===
-        "number"
-      ) {
-
-        const milliseconds =
-          value <
-          100000000000
-            ? value * 1000
-            : value;
-
-
-        const date =
-          new Date(
-            milliseconds
-          );
-
-
-        if (
-          !Number.isNaN(
-            date.getTime()
-          )
-        ) {
-
-          return date;
-
-        }
-
-      }
+          : timestamp;
 
 
       const date =
         new Date(
-          value
+          milliseconds
         );
 
 
@@ -356,95 +337,159 @@
     }
 
 
-    // Tahun / Bulan / Hari / Jam
+    /*
+      Jika ada Datetime
+    */
 
-    const tahun =
-      firstNumber(
-        row,
-        [
-          "Tahun",
-          "tahun",
-          "year"
-        ]
-      );
-
-
-    const bulan =
-      firstNumber(
-        row,
-        [
-          "Bulan",
-          "bulan",
-          "month"
-        ]
-      );
-
-
-    const hari =
-      firstNumber(
-        row,
-        [
-          "Hari",
-          "hari",
-          "day"
-        ]
-      );
-
-
-    const jam =
-      firstNumber(
-        row,
-        [
-          "Jam",
-          "jam",
-          "hour"
-        ]
-      ) ?? 0;
-
-
-    const menit =
-      firstNumber(
-        row,
-        [
-          "Menit",
-          "menit",
-          "minute"
-        ]
-      ) ?? 0;
-
-
-    const detik =
-      firstNumber(
-        row,
-        [
-          "Detik",
-          "detik",
-          "second"
-        ]
-      ) ?? 0;
+    const datetime =
+      row.Datetime ??
+      row.datetime ??
+      row.date_time;
 
 
     if (
-      tahun !== null &&
-      bulan !== null &&
-      hari !== null
+      datetime
     ) {
 
-      return new Date(
+      const date =
+        new Date(
+          datetime
+        );
 
-        tahun,
 
-        bulan - 1,
+      if (
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
 
-        hari,
+        return date;
 
-        jam,
+      }
 
-        menit,
+    }
 
-        detik
 
-      );
+    /*
+      Jika Firebase menggunakan
+      tanggal + waktu
+    */
+
+    if (
+      row.tanggal &&
+      row.waktu
+    ) {
+
+      let dateString =
+
+        String(
+          row.tanggal
+        ) +
+        " " +
+        String(
+          row.waktu
+        );
+
+
+      /*
+        Format Indonesia:
+        DD/MM/YYYY
+      */
+
+      const match =
+        dateString.match(
+          /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\s*(.*)$/
+        );
+
+
+      if (
+        match
+      ) {
+
+        const day =
+          Number(
+            match[1]
+          );
+
+
+        const month =
+          Number(
+            match[2]
+          ) - 1;
+
+
+        const year =
+          Number(
+            match[3]
+          );
+
+
+        const time =
+          match[4] ||
+          "00:00:00";
+
+
+        const date =
+          new Date(
+
+            year,
+
+            month,
+
+            day
+
+          );
+
+
+        const timeParts =
+          time.split(":");
+
+
+        date.setHours(
+          Number(
+            timeParts[0]
+          ) || 0,
+          Number(
+            timeParts[1]
+          ) || 0,
+          Number(
+            timeParts[2]
+          ) || 0
+        );
+
+
+        if (
+          !Number.isNaN(
+            date.getTime()
+          )
+        ) {
+
+          return date;
+
+        }
+
+      }
+
+
+      /*
+        Coba parsing langsung
+      */
+
+      const date =
+        new Date(
+          dateString
+        );
+
+
+      if (
+        !Number.isNaN(
+          date.getTime()
+        )
+      ) {
+
+        return date;
+
+      }
 
     }
 
@@ -454,9 +499,9 @@
   }
 
 
-  // =====================================================
-  // NORMALISASI ARAH
-  // =====================================================
+  /* =======================================================
+     NORMALISASI ARAH
+  ======================================================= */
 
   function normalizeDirection(
     degree
@@ -491,28 +536,29 @@
   }
 
 
-  // =====================================================
-  // BACA ARAH ANGIN
-  // =====================================================
+  /* =======================================================
+     ARAH ANGIN
+  ======================================================= */
 
-  function directionFromRow(
-    row
-  ) {
+  function directionFromRow(row) {
 
-    const value =
+    /*
+      Jika Firebase menyimpan angka
+      langsung.
+    */
+
+    const numeric =
       firstNumber(
         row,
         [
 
-          "arah_angin",
-
-          "arah",
-
           "arah_angin_derajat",
+
+          "arah_derajat",
 
           "wind_direction",
 
-          "direction",
+          "direction_degree",
 
           "derajat"
 
@@ -521,24 +567,64 @@
 
 
     if (
-      value !== null
+      numeric !== null
     ) {
 
       return normalizeDirection(
-        value
+        numeric
       );
 
     }
 
 
+    /*
+      Coba field arah_angin.
+    */
+
+    const raw =
+      row.arah_angin ??
+      row.arah ??
+      row.direction;
+
+
+    /*
+      Jika berupa angka.
+    */
+
+    if (
+      raw !== undefined &&
+      raw !== null &&
+      raw !== ""
+    ) {
+
+      const numericRaw =
+        Number(
+          raw
+        );
+
+
+      if (
+        Number.isFinite(
+          numericRaw
+        )
+      ) {
+
+        return normalizeDirection(
+          numericRaw
+        );
+
+      }
+
+    }
+
+
+    /*
+      Jika berupa teks.
+    */
+
     const text =
       String(
-
-        row.arah_angin ??
-        row.arah ??
-        row.direction ??
-        ""
-
+        raw ?? ""
       )
       .toLowerCase()
       .trim();
@@ -605,9 +691,157 @@
   }
 
 
-  // =====================================================
-  // KONVERSI DATA FIREBASE
-  // =====================================================
+  /* =======================================================
+     TINGGI MUKA AIR
+  ======================================================= */
+
+  function getWaterLevel(
+    row,
+    sensorHeight = 2.5
+  ) {
+
+    /*
+      Jika Firebase sudah memiliki
+      tinggi muka air.
+    */
+
+    let waterLevel =
+      firstNumber(
+        row,
+        [
+
+          "tinggi_muka_air",
+
+          "tinggi_permukaan_laut",
+
+          "tinggiAir",
+
+          "tinggi_air",
+
+          "sea_level",
+
+          "water_level"
+
+        ]
+      );
+
+
+    if (
+      waterLevel !== null
+    ) {
+
+      return waterLevel;
+
+    }
+
+
+    /*
+      Jika belum ada,
+      hitung dari jarak sensor.
+    */
+
+    let distance =
+      firstNumber(
+        row,
+        [
+
+          "jarak_meter",
+
+          "distance_meter",
+
+          "jarak_m"
+
+        ]
+      );
+
+
+    if (
+      distance !== null
+    ) {
+
+      return Math.max(
+
+        0,
+
+        sensorHeight -
+        distance
+
+      );
+
+    }
+
+
+    /*
+      Cek jarak cm.
+    */
+
+    let distanceCm =
+      firstNumber(
+        row,
+        [
+
+          "jarak_cm",
+
+          "distance_cm"
+
+        ]
+      );
+
+
+    if (
+      distanceCm !== null
+    ) {
+
+      return Math.max(
+
+        0,
+
+        sensorHeight -
+        distanceCm / 100
+
+      );
+
+    }
+
+
+    /*
+      Jika field "jarak"
+      digunakan dalam meter.
+    */
+
+    let jarak =
+      firstNumber(
+        row,
+        [
+          "jarak"
+        ]
+      );
+
+
+    if (
+      jarak !== null
+    ) {
+
+      return Math.max(
+
+        0,
+
+        sensorHeight -
+        jarak
+
+      );
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* =======================================================
+     KONVERSI FIREBASE
+  ======================================================= */
 
   function convertFirebaseData(
     raw,
@@ -649,6 +883,10 @@
       }
 
 
+      /*
+        SUHU
+      */
+
       const suhu =
         firstNumber(
           row,
@@ -660,6 +898,10 @@
         );
 
 
+      /*
+        KELEMBAPAN
+      */
+
       const kelembapan =
         firstNumber(
           row,
@@ -670,6 +912,10 @@
           ]
         );
 
+
+      /*
+        KECEPATAN ANGIN
+      */
 
       const kecepatan =
         firstNumber(
@@ -690,101 +936,31 @@
         );
 
 
+      /*
+        ARAH ANGIN
+      */
+
       const arah =
         directionFromRow(
           row
         );
 
 
-      let tinggiAir =
-        firstNumber(
+      /*
+        TINGGI MUKA AIR
+      */
+
+      const tinggiAir =
+        getWaterLevel(
           row,
-          [
-
-            "tinggi_muka_air",
-
-            "tinggi_permukaan_laut",
-
-            "tinggiAir",
-
-            "sea_level",
-
-            "water_level"
-
-          ]
+          sensorHeight
         );
 
 
-      // ===============================================
-      // Jika tinggi air tidak ada
-      // hitung dari jarak sensor
-      // ===============================================
-
-      if (
-        tinggiAir === null
-      ) {
-
-        const jarakMeter =
-          firstNumber(
-            row,
-            [
-
-              "jarak_meter",
-
-              "distance_meter",
-
-              "jarak_m"
-
-            ]
-          );
-
-
-        const jarakCm =
-          firstNumber(
-            row,
-            [
-
-              "jarak_cm",
-
-              "distance_cm",
-
-              "jarak"
-
-            ]
-          );
-
-
-        if (
-          jarakMeter !== null
-        ) {
-
-          tinggiAir =
-            Math.max(
-              0,
-              sensorHeight -
-              jarakMeter
-            );
-
-        }
-
-        else if (
-          jarakCm !== null
-        ) {
-
-          tinggiAir =
-            Math.max(
-
-              0,
-
-              sensorHeight -
-              jarakCm / 100
-
-            );
-
-        }
-
-      }
-
+      /*
+        DATA TIDAK LENGKAP
+        DILEWATI
+      */
 
       if (
 
@@ -848,10 +1024,17 @@
     }
 
 
+    /*
+      Lama → baru
+    */
+
     result.sort(
+
       (a, b) =>
+
         a.datetime -
         b.datetime
+
     );
 
 
@@ -860,9 +1043,9 @@
   }
 
 
-  // =====================================================
-  // NORMALISASI PER JAM
-  // =====================================================
+  /* =======================================================
+     BULATKAN WAKTU KE JAM
+  ======================================================= */
 
   function floorHour(
     date
@@ -886,6 +1069,10 @@
   }
 
 
+  /* =======================================================
+     DATA PER JAM
+  ======================================================= */
+
   function prepareHourlyData(
     data
   ) {
@@ -903,6 +1090,12 @@
           row.datetime
         );
 
+
+      /*
+        Jika ada beberapa data
+        dalam satu jam,
+        gunakan data terakhir.
+      */
 
       map.set(
 
@@ -926,19 +1119,21 @@
 
       ...map.values()
 
-    ]
-      .sort(
-        (a, b) =>
-          a.datetime -
-          b.datetime
-      );
+    ].sort(
+
+      (a, b) =>
+
+        a.datetime -
+        b.datetime
+
+    );
 
   }
 
 
-  // =====================================================
-  // SCALER MIN MAX
-  // =====================================================
+  /* =======================================================
+     MIN MAX SCALER
+  ======================================================= */
 
   class MinMaxScaler {
 
@@ -951,9 +1146,7 @@
     }
 
 
-    fit(
-      matrix
-    ) {
+    fit(matrix) {
 
       const columns =
         matrix[0].length;
@@ -1005,14 +1198,14 @@
     }
 
 
-    transform(
-      matrix
-    ) {
+    transform(matrix) {
 
       return matrix.map(
+
         row =>
 
           row.map(
+
             (value, j) => {
 
               const range =
@@ -1037,6 +1230,7 @@
               ) / range;
 
             }
+
           )
 
       );
@@ -1044,14 +1238,14 @@
     }
 
 
-    inverse(
-      matrix
-    ) {
+    inverse(matrix) {
 
       return matrix.map(
+
         row =>
 
           row.map(
+
             (value, j) => {
 
               const range =
@@ -1068,6 +1262,7 @@
               this.min[j];
 
             }
+
           )
 
       );
@@ -1077,13 +1272,11 @@
   }
 
 
-  // =====================================================
-  // BARIS → FITUR
-  // =====================================================
+  /* =======================================================
+     ROW → FEATURES
+  ======================================================= */
 
-  function rowToFeatures(
-    row
-  ) {
+  function rowToFeatures(row) {
 
     return [
 
@@ -1104,9 +1297,9 @@
   }
 
 
-  // =====================================================
-  // SEQUENCE
-  // =====================================================
+  /* =======================================================
+     SEQUENCE
+  ======================================================= */
 
   function makeSequences(
     values,
@@ -1127,8 +1320,12 @@
       X.push(
 
         values.slice(
-          i - lookback,
+
+          i -
+          lookback,
+
           i
+
         )
 
       );
@@ -1142,16 +1339,19 @@
 
 
     return {
+
       X,
+
       y
+
     };
 
   }
 
 
-  // =====================================================
-  // MODEL LSTM
-  // =====================================================
+  /* =======================================================
+     MODEL LSTM
+  ======================================================= */
 
   function createModel(
     config
@@ -1222,7 +1422,9 @@
         "meanSquaredError",
 
       metrics:
-        ["mae"]
+        [
+          "mae"
+        ]
 
     });
 
@@ -1232,9 +1434,9 @@
   }
 
 
-  // =====================================================
-  // EVALUASI
-  // =====================================================
+  /* =======================================================
+     METRIK REGRESI
+  ======================================================= */
 
   function regressionMetrics(
     actual,
@@ -1258,16 +1460,11 @@
       j++
     ) {
 
-      let absolute =
-        0;
+      let absolute = 0;
 
+      let square = 0;
 
-      let square =
-        0;
-
-
-      let sum =
-        0;
+      let sum = 0;
 
 
       for (
@@ -1288,7 +1485,8 @@
 
 
         square +=
-          error * error;
+          error *
+          error;
 
 
         sum +=
@@ -1301,12 +1499,9 @@
         sum / n;
 
 
-      let total =
-        0;
+      let total = 0;
 
-
-      let residual =
-        0;
+      let residual = 0;
 
 
       for (
@@ -1317,17 +1512,23 @@
 
         total +=
           Math.pow(
+
             actual[i][j] -
             mean,
+
             2
+
           );
 
 
         residual +=
           Math.pow(
+
             actual[i][j] -
             predicted[i][j],
+
             2
+
           );
 
       }
@@ -1345,10 +1546,14 @@
 
       const R2 =
         total === 0
+
           ? 0
-          : 1 -
-            residual /
-            total;
+
+          :
+
+          1 -
+          residual /
+          total;
 
 
       output[
@@ -1371,9 +1576,9 @@
   }
 
 
-  // =====================================================
-  // ERROR ARAH ANGIN
-  // =====================================================
+  /* =======================================================
+     ERROR ARAH ANGIN
+  ======================================================= */
 
   function circularError(
     actual,
@@ -1382,8 +1587,10 @@
 
     let error =
       Math.abs(
+
         actual -
         predicted
+
       );
 
 
@@ -1419,7 +1626,8 @@
       i++
     ) {
 
-      const a =
+      let a =
+
         Math.atan2(
 
           actual[i][3],
@@ -1431,7 +1639,8 @@
         Math.PI;
 
 
-      const p =
+      let p =
+
         Math.atan2(
 
           predicted[i][3],
@@ -1443,32 +1652,30 @@
         Math.PI;
 
 
-      actualDeg.push(
-
+      a =
         (
-          a + 360
-        ) % 360
+          a +
+          360
+        ) % 360;
 
-      );
 
-
-      predictedDeg.push(
-
+      p =
         (
-          p + 360
-        ) % 360
+          p +
+          360
+        ) % 360;
 
-      );
+
+      actualDeg.push(a);
+
+      predictedDeg.push(p);
 
     }
 
 
-    let absolute =
-      0;
+    let absolute = 0;
 
-
-    let square =
-      0;
+    let square = 0;
 
 
     for (
@@ -1501,10 +1708,12 @@
     return {
 
       MAE:
+
         absolute /
         actualDeg.length,
 
       RMSE:
+
         Math.sqrt(
 
           square /
@@ -1517,9 +1726,9 @@
   }
 
 
-  // =====================================================
-  // TRAINING
-  // =====================================================
+  /* =======================================================
+     TRAINING
+  ======================================================= */
 
   async function train(
     data,
@@ -1539,12 +1748,34 @@
 
 
     if (
+      !Array.isArray(data)
+    ) {
+
+      throw new Error(
+        "Data LSTM harus berupa array."
+      );
+
+    }
+
+
+    if (
       data.length <=
       config.lookback + 10
     ) {
 
       throw new Error(
-        "Jumlah data tidak cukup untuk training LSTM."
+
+        "Jumlah data tidak cukup. " +
+
+        "Minimal diperlukan lebih dari " +
+
+        (
+          config.lookback +
+          10
+        ) +
+
+        " data per jam."
+
       );
 
     }
@@ -1556,19 +1787,27 @@
       );
 
 
-    // 80% TRAINING
+    /*
+      80% training
+      20% testing
+    */
 
     const trainCount =
       Math.floor(
+
         matrix.length *
         0.80
+
       );
 
 
     const trainRaw =
       matrix.slice(
+
         0,
+
         trainCount
+
       );
 
 
@@ -1587,8 +1826,10 @@
       );
 
 
-    // SCALER HANYA FIT
-    // PADA DATA TRAINING
+    /*
+      SCALER HANYA
+      DARI TRAINING
+    */
 
     const scaler =
       new MinMaxScaler();
@@ -1611,6 +1852,10 @@
       );
 
 
+    /*
+      SEQUENCE
+    */
+
     const trainSequence =
       makeSequences(
 
@@ -1629,6 +1874,17 @@
         config.lookback
 
       );
+
+
+    if (
+      trainSequence.X.length === 0
+    ) {
+
+      throw new Error(
+        "Sequence training tidak terbentuk."
+      );
+
+    }
 
 
     const xs =
@@ -1699,6 +1955,7 @@
                 bestValidation =
                   validation;
 
+
                 bestEpoch =
                   epoch + 1;
 
@@ -1712,8 +1969,11 @@
               ) {
 
                 config.onEpochEnd(
+
                   epoch + 1,
+
                   logs
+
                 );
 
               }
@@ -1730,7 +1990,9 @@
       );
 
 
-    // TEST
+    /*
+      TESTING
+    */
 
     const testX =
       tf.tensor3d(
@@ -1754,13 +2016,17 @@
 
     const predicted =
       scaler.inverse(
+
         predictionScaled
+
       );
 
 
     const actual =
       scaler.inverse(
+
         actualScaled
+
       );
 
 
@@ -1783,6 +2049,10 @@
 
       );
 
+
+    /*
+      Bersihkan tensor
+    */
 
     xs.dispose();
 
@@ -1818,9 +2088,9 @@
   }
 
 
-  // =====================================================
-  // FORECAST
-  // =====================================================
+  /* =======================================================
+     FORECAST 7 HARI
+  ======================================================= */
 
   async function forecast(
     data,
@@ -1859,6 +2129,10 @@
       config.lookback;
 
 
+    /*
+      Ambil 24 jam terakhir
+    */
+
     let recent =
       data
         .slice(
@@ -1875,7 +2149,10 @@
     ) {
 
       throw new Error(
-        "Data terakhir harus minimal 24 jam."
+
+        "Data terakhir harus " +
+        "minimal 24 jam."
+
       );
 
     }
@@ -1892,15 +2169,17 @@
 
     const lastDate =
       new Date(
+
         data[
           data.length - 1
         ].datetime
+
       );
 
 
-    // ===============================================
-    // PREDIKSI REKURSIF
-    // ===============================================
+    /*
+      FORECAST REKURSIF
+    */
 
     for (
       let hour = 1;
@@ -1912,12 +2191,15 @@
         tf.tensor3d(
 
           [
+
             scaled.slice(
               -lookback
             )
+
           ],
 
           [
+
             1,
 
             lookback,
@@ -1955,15 +2237,21 @@
 
       const inverse =
         scaler.inverse(
+
           [
             nextScaled
           ]
+
         )[0];
 
 
-      // Arah angin
+      /*
+        Konversi sin/cos
+        kembali menjadi derajat.
+      */
 
       let direction =
+
         Math.atan2(
 
           inverse[3],
@@ -1976,9 +2264,11 @@
 
 
       direction =
+
         (
           direction +
           360
+
         ) % 360;
 
 
@@ -2031,9 +2321,9 @@
   }
 
 
-  // =====================================================
-  // FORMAT WAKTU
-  // =====================================================
+  /* =======================================================
+     FORMAT DATETIME
+  ======================================================= */
 
   function formatDatetime(
     date
@@ -2046,7 +2336,8 @@
     const bulan =
       String(
         date.getMonth() + 1
-      ).padStart(
+      )
+      .padStart(
         2,
         "0"
       );
@@ -2055,7 +2346,8 @@
     const hari =
       String(
         date.getDate()
-      ).padStart(
+      )
+      .padStart(
         2,
         "0"
       );
@@ -2064,7 +2356,8 @@
     const jam =
       String(
         date.getHours()
-      ).padStart(
+      )
+      .padStart(
         2,
         "0"
       );
@@ -2086,9 +2379,9 @@
   }
 
 
-  // =====================================================
-  // EXPORT CSV
-  // =====================================================
+  /* =======================================================
+     CSV
+  ======================================================= */
 
   function toCSV(
     data
@@ -2161,9 +2454,43 @@
   }
 
 
-  // =====================================================
-  // PUBLIC API
-  // =====================================================
+  /* =======================================================
+     INFO DATA
+  ======================================================= */
+
+  function getDataInfo(
+    raw,
+    hourly
+  ) {
+
+    return {
+
+      firebaseRecords:
+        toArray(raw).length,
+
+      validRecords:
+        hourly.length,
+
+      firstDatetime:
+        hourly.length
+          ? hourly[0].datetime
+          : null,
+
+      lastDatetime:
+        hourly.length
+          ? hourly[
+              hourly.length - 1
+            ].datetime
+          : null
+
+    };
+
+  }
+
+
+  /* =======================================================
+     PUBLIC API
+  ======================================================= */
 
   window.LSTM = {
 
@@ -2171,11 +2498,15 @@
 
     DEFAULT,
 
+    FIREBASE_HISTORY_URL,
+
     getFirebaseData,
 
     convertFirebaseData,
 
     prepareHourlyData,
+
+    getDataInfo,
 
     train,
 
