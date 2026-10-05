@@ -3,247 +3,618 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Prediksi Cuaca & Air Laut (LSTM)</title>
-  
-  <!-- CDN TensorFlow.js, Chart.js & Firebase App + Database -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <title>Prediksi LSTM - Monitoring Pesisir (79 Data)</title>
+
+  <!-- FIREBASE JS SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <!-- TENSORFLOW.JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+
+  <!-- CHART.JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  
+
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f4f7f6;
-    }
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 800px;
-      margin: 0 auto;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 12px 15px;
-      font-size: 16px;
-      border-radius: 5px;
-      cursor: pointer;
-      width: 100%;
-      font-weight: bold;
-    }
-    button:disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
-    }
-    #statusText {
-      margin-top: 15px;
-      font-weight: bold;
-      color: #333;
-    }
-    .progress-bar-bg {
-      width: 100%;
-      background-color: #e0e0e0;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-    #progressFill {
-      width: 0%;
-      height: 15px;
-      background-color: #007bff;
-      transition: width 0.3s;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0b1220; color: #e5e7eb; min-height: 100vh; }
+    .app { display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; padding: 0 8px; }
+    .brand-icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 21px; }
+    .brand-text h2 { font-size: 16px; color: #ffffff; margin-bottom: 2px; }
+    .brand-text p { color: #94a3b8; font-size: 11px; }
+    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; }
+    .menu { display: flex; flex-direction: column; gap: 5px; }
+    .menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 9px; color: #94a3b8; cursor: pointer; transition: 0.2s; font-size: 13px; text-decoration: none; }
+    .menu-item:hover { background: #1e293b; color: #ffffff; }
+    .menu-item.active { background: #1d4ed8; color: #ffffff; }
+    .menu-icon { width: 20px; text-align: center; font-size: 16px; }
+
+    /* MAIN CONTENT */
+    .main { margin-left: 250px; width: calc(100% - 250px); min-height: 100vh; padding: 25px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title h1 { font-size: 24px; color: #ffffff; margin-bottom: 4px; }
+    .page-title p { font-size: 12px; color: #64748b; }
+
+    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
+    .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
+
+    .btn-train { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
+    .btn-train:hover { background: #1d4ed8; }
+    .btn-train:disabled { background: #475569; cursor: not-allowed; }
+
+    .progress-bar-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+    .progress-bar-fill { width: 0%; background: #06b6d4; height: 100%; transition: width 0.3s ease; }
+
+    .chart-container { height: 300px; position: relative; }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; text-align: center; }
+    .card-label { color: #64748b; font-size: 10px; margin-bottom: 6px; text-transform: uppercase; }
+    .card-val { font-size: 20px; font-weight: bold; color: #38bdf8; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; color: #64748b; font-size: 11px; padding: 10px; border-bottom: 1px solid #1f2937; }
+    tbody td { color: #cbd5e1; font-size: 12px; padding: 10px; border-bottom: 1px solid #172033; }
+
+    @media (max-width: 1024px) {
+      .cards-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>Sistem Prediksi Cuaca & Air Laut (LSTM)</h2>
-    <p>Klik tombol di bawah untuk mengambil data dari Firebase dan menjalankan model prediksi.</p>
-    
-    <button id="btnStart">🚀 Mulai Pelatihan & Prediksi</button>
-    
-    <div id="statusText">Status: Siap</div>
-    <div class="progress-bar-bg">
-      <div id="progressFill"></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🌊</div>
+      <div class="brand-text">
+        <h2>Monitoring Pesisir</h2>
+        <p>IoT Environmental System</p>
+      </div>
     </div>
-  </div>
 
-  <script>
-    // 1. Kredensial Firebase yang Sudah Dimasukkan Langsung
-    const firebaseConfig = {
-      apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
-      authDomain: "arah-angin-76f91.firebaseapp.com",
-      databaseURL: "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "arah-angin-76f91",
-      storageBucket: "arah-angin-76f91.firebasestorage.app",
-      messagingSenderId: "937712967453",
-      appId: "1:937712967453:web:36e81a289fe2a33b694bf4",
-      measurementId: "G-YKXYC252NV"
-    };
+    <div class="menu-title">Menu</div>
+    <div class="menu">
+      <a href="index.html" class="menu-item">
+        <span class="menu-icon">📊</span>
+        <span>Dashboard</span>
+      </a>
+      <a href="lstm.html" class="menu-item active">
+        <span class="menu-icon">🤖</span>
+        <span>Prediksi LSTM</span>
+      </a>
+    </div>
+  </aside>
 
-    // Inisialisasi Firebase
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title">
+        <h1>Prediksi Model LSTM Ringan</h1>
+        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan opsi agregasi otomatis</p>
+      </div>
+      <button id="btnStart" class="btn-train" onclick="startLSTMTraining()">🚀 Mulai Pelatihan & Prediksi</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Status Model Training</div>
+          <div class="panel-subtitle" id="statusText">Siap memproses data histori...</div>
+        </div>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="progressFill" class="progress-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- CARDS PREDIKSI STEPS PERTAMA -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-label">Tinggi Air Laut</div>
+        <div class="card-val" id="predWater">-- m</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Suhu Udara</div>
+        <div class="card-val" id="predTemp">-- °C</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Kelembaban</div>
+        <div class="card-val" id="predHum">-- %</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Arah Angin</div>
+        <div class="card-val" id="predWindDir">--°</div>
+      </div>
+    </div>
+
+    <!-- TABEL EVALUASI METRIK AKURASI -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi)</div>
+          <div class="panel-subtitle">Nilai evaluasi dihitung berdasarkan perbandingan data aktual vs prediksi pada data histori</div>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>PARAMETER</th>
+              <th>RMSE</th>
+              <th>MAE</th>
+              <th>R (KORELASI)</th>
+              <th>R² (DETERMINASI)</th>
+            </tr>
+          </thead>
+          <tbody id="metricsTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat performa model.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GRAFIK TINGGI AIR LAUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Proyeksi Tinggi Muka Air Laut (Histori vs Prediksi)</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="lstmWaterChart"></canvas>
+      </div>
+    </div>
+
+    <!-- GRAFIK KELEMBABAN & SUHU -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Proyeksi Suhu & Kelembaban Udara</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="lstmHumChart"></canvas>
+      </div>
+    </div>
+
+    <!-- GRAFIK ARAH ANGIN & TEKANAN -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Proyeksi Arah Angin & Tekanan Udara</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="lstmWindChart"></canvas>
+      </div>
+    </div>
+
+    <!-- TABEL OUTPUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Detail Hasil Prediksi Langkah Selanjutnya</div>
+      </div>
+      <div style="overflow-x: auto; max-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th>LANGKAH KE-</th>
+              <th>TINGGI AIR (m)</th>
+              <th>SUHU (°C)</th>
+              <th>KELEMBABAN (%)</th>
+              <th>TEKANAN (hPa)</th>
+              <th>ARAH ANGIN (°)</th>
+            </tr>
+          </thead>
+          <tbody id="predictionTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; color: #64748b;">Klik tombol di atas untuk memulai pelatihan model.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // KREDENSIAL FIREBASE
+  const firebaseConfig = {
+    apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
+    authDomain: "arah-angin-76f91.firebaseapp.com",
+    databaseURL: "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "arah-angin-76f91",
+    storageBucket: "arah-angin-76f91.firebasestorage.app",
+    messagingSenderId: "937712967453",
+    appId: "1:937712967453:web:36e81a289fe2a33b694bf4",
+    measurementId: "G-YKXYC252NV"
+  };
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const db = firebase.database();
+
+  let waterChart, humChart, windChart;
+
+  function initCharts() {
+    const ctxWater = document.getElementById('lstmWaterChart').getContext('2d');
+    waterChart = new Chart(ctxWater, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Histori Aktual (m)', data: [], borderColor: '#3b82f6', tension: 0.3 },
+          { label: 'Prediksi LSTM (m)', data: [], borderColor: '#ef4444', borderDash: [5, 5], tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        scales: { x: { ticks: { color: '#64748b' } }, y: { ticks: { color: '#64748b' } } }
+      }
+    });
+
+    const ctxHum = document.getElementById('lstmHumChart').getContext('2d');
+    humChart = new Chart(ctxHum, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Prediksi Kelembaban (%)', data: [], borderColor: '#06b6d4', tension: 0.3 },
+          { label: 'Prediksi Suhu (°C)', data: [], borderColor: '#eab308', tension: 0.3, yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        scales: {
+          x: { ticks: { color: '#64748b' } },
+          y: { position: 'left', ticks: { color: '#64748b' } },
+          y1: { position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+
+    const ctxWind = document.getElementById('lstmWindChart').getContext('2d');
+    windChart = new Chart(ctxWind, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Prediksi Arah Angin (°)', data: [], borderColor: '#a855f7', tension: 0.3 },
+          { label: 'Prediksi Tekanan (hPa)', data: [], borderColor: '#10b981', tension: 0.3, yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        scales: {
+          x: { ticks: { color: '#64748b' } },
+          y: { position: 'left', min: 0, max: 360, ticks: { color: '#64748b' } },
+          y1: { position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+
+  // FUNGSI PEMROSESAN VEKTOR ANGIN & PARSING FITUR
+  function processRawData(rawData) {
+    return rawData.map(item => {
+      const w = Number(item.water_level ?? item.tinggi_muka_air ?? item.tinggi_air ?? 0) || 0;
+      const t = Number(item.temp ?? item.suhu ?? 0) || 0;
+      const h = Number(item.humidity ?? item.kelembapan ?? 0) || 0;
+      const p = Number(item.pressure ?? item.tekanan ?? 0) || 0;
+      const deg = Number(item.wind_dir ?? item.arah_angin ?? item.deg ?? 0) || 0;
+
+      // Transformasi Derajat Angin ke Vektor Sinus & Kosinus
+      const rad = (deg * Math.PI) / 180;
+      return {
+        water_level: w,
+        temp: t,
+        humidity: h,
+        pressure: p,
+        wind_u: Math.sin(rad),
+        wind_v: Math.cos(rad)
+      };
+    });
+  }
+
+  // FUNGSI PERHITUNGAN METRIK AKURASI (RMSE, MAE, R, R²)
+  function calculateMetrics(yTrue, yPred) {
+    const n = yTrue.length;
+    if (n === 0) return { rmse: 0, mae: 0, r: 0, r2: 0 };
+
+    let sumErr2 = 0;
+    let sumAbsErr = 0;
+    let sumTrue = 0;
+    let sumPred = 0;
+
+    for (let i = 0; i < n; i++) {
+      const err = yTrue[i] - yPred[i];
+      sumErr2 += err * err;
+      sumAbsErr += Math.abs(err);
+      sumTrue += yTrue[i];
+      sumPred += yPred[i];
     }
-    const db = firebase.database();
 
-    // 2. Fungsi Pemrosesan Vektor & Parsing Data
-    function processRawData(rawData) {
-      const rawList = Array.isArray(rawData) 
-        ? rawData 
-        : Object.values(rawData).filter(d => d && typeof d === 'object');
+    const meanTrue = sumTrue / n;
+    const meanPred = sumPred / n;
 
-      return rawList.map(item => {
-        const water_level = Number(item.water_level ?? item.tinggi_muka_air ?? item.tinggi_air ?? 0);
-        const temp = Number(item.temp ?? item.suhu ?? 0);
-        const humidity = Number(item.humidity ?? item.kelembapan ?? 0);
-        const pressure = Number(item.pressure ?? item.tekanan ?? 0);
-        const wind_speed = Number(item.wind_speed ?? item.kecepatan_angin ?? item.speed ?? 0);
-        const deg = Number(item.wind_dir ?? item.arah_angin ?? item.deg ?? 0);
+    let numR = 0;
+    let denTrueR = 0;
+    let denPredR = 0;
+    let ssTot = 0;
 
-        const rad = (deg * Math.PI) / 180;
+    for (let i = 0; i < n; i++) {
+      const diffTrue = yTrue[i] - meanTrue;
+      const diffPred = yPred[i] - meanPred;
+
+      numR += diffTrue * diffPred;
+      denTrueR += diffTrue * diffTrue;
+      denPredR += diffPred * diffPred;
+      ssTot += diffTrue * diffTrue;
+    }
+
+    const rmse = Math.sqrt(sumErr2 / n);
+    const mae = sumAbsErr / n;
+
+    const denR = Math.sqrt(denTrueR) * Math.sqrt(denPredR);
+    const r = denR === 0 ? 0 : numR / denR;
+
+    const r2 = ssTot === 0 ? 0 : 1 - (sumErr2 / ssTot);
+
+    return { rmse, mae, r, r2 };
+  }
+
+  async function startLSTMTraining() {
+    const btn = document.getElementById('btnStart');
+    const statusText = document.getElementById('statusText');
+    const progressFill = document.getElementById('progressFill');
+
+    btn.disabled = true;
+    statusText.innerText = "Mengambil data histori dari Firebase...";
+    progressFill.style.width = "10%";
+
+    try {
+      let snapshot = await db.ref('sensor').once('value');
+      let dataVal = snapshot.val();
+      if (!dataVal) {
+        snapshot = await db.ref('cuaca/history').once('value');
+        dataVal = snapshot.val();
+      }
+
+      if (!dataVal) throw new Error("Data histori tidak ditemukan di database.");
+
+      let rawList = Array.isArray(dataVal) ? dataVal : Object.values(dataVal);
+      let cleanDataset = rawList.filter(d => d && typeof d === 'object');
+
+      if (cleanDataset.length < 10) throw new Error("Dataset terlalu sedikit (butuh minimal 10 data histori).");
+
+      statusText.innerText = `Memproses ${cleanDataset.length} sampel data...`;
+      const processedData = processRawData(cleanDataset);
+
+      // Gunakan seluruh data yang tersedia (misalnya 79 data)
+      const dataset = processedData.slice(-79);
+
+      const features = dataset.map(d => [
+        d.water_level, d.temp, d.humidity, d.pressure, d.wind_u, d.wind_v
+      ]);
+
+      const numFeatures = 6;
+      // Konfigurasi Khusus untuk 79 Data
+      const timeSteps = 5;       // Lookback 5 langkah
+      const forecastSteps = 12;  // Prediksi 12 langkah ke depan
+
+      // Normalisasi Min-Max dengan Proteksi Division by Zero
+      const mins = Array(numFeatures).fill(Infinity);
+      const maxs = Array(numFeatures).fill(-Infinity);
+
+      for (let i = 0; i < features.length; i++) {
+        for (let j = 0; j < numFeatures; j++) {
+          if (features[i][j] < mins[j]) mins[j] = features[i][j];
+          if (features[i][j] > maxs[j]) maxs[j] = features[i][j];
+        }
+      }
+
+      const scaledFeatures = features.map(row =>
+        row.map((val, col) => {
+          const range = maxs[col] - mins[col];
+          return range === 0 ? 0 : (val - mins[col]) / range;
+        })
+      );
+
+      // Form Dataset Training Sekuensial
+      const X_train = [], Y_train = [];
+      for (let i = 0; i <= scaledFeatures.length - timeSteps - 1; i++) {
+        X_train.push(scaledFeatures.slice(i, i + timeSteps));
+        Y_train.push(scaledFeatures[i + timeSteps]);
+      }
+
+      const xs = tf.tensor3d(X_train);
+      const ys = tf.tensor2d(Y_train);
+
+      // Model LSTM Ringan (16 Units untuk Mencegah Overfitting)
+      const model = tf.sequential();
+      model.add(tf.layers.lstm({
+        units: 16,
+        inputShape: [timeSteps, numFeatures],
+        returnSequences: false
+      }));
+      model.add(tf.layers.dense({ units: numFeatures }));
+
+      model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' });
+
+      statusText.innerText = "Melatih Model LSTM...";
+      const epochs = 40;
+
+      await model.fit(xs, ys, {
+        epochs: epochs,
+        batchSize: 8,
+        callbacks: {
+          onEpochEnd: (epoch, logs) => {
+            const pct = Math.round(((epoch + 1) / epochs) * 80) + 10;
+            progressFill.style.width = pct + "%";
+            statusText.innerText = `Training Epoch ${epoch + 1}/${epochs} - Loss: ${(logs.loss || 0).toFixed(6)}`;
+          }
+        }
+      });
+
+      // HITUNG PREDIKSI IN-SAMPLE UNTUK EVALUASI AKURASI
+      statusText.innerText = "Mengevaluasi Metrik Akurasi...";
+      const trainPredTensor = model.predict(xs);
+      const trainPredArray = await trainPredTensor.array();
+      trainPredTensor.dispose();
+
+      // Denormalisasi Data In-Sample Actual & Predicted
+      const yTrueOriginal = Y_train.map(row => {
+        const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
+        let deg = (Math.atan2(real[4], real[5]) * 180) / Math.PI;
+        if (deg < 0) deg += 360;
+        return [real[0], real[1], real[2], real[3], deg];
+      });
+
+      const yPredOriginal = trainPredArray.map(row => {
+        const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
+        let deg = (Math.atan2(real[4], real[5]) * 180) / Math.PI;
+        if (deg < 0) deg += 360;
+        return [real[0], real[1], real[2], real[3], deg];
+      });
+
+      // Hitung Metrik per Parameter (Water, Temp, Humidity, Pressure, Wind Dir)
+      const paramNames = ["Tinggi Air Laut (m)", "Suhu Udara (°C)", "Kelembaban (%)", "Tekanan (hPa)", "Arah Angin (°)"];
+      const metricsResults = [];
+
+      for (let p = 0; p < 5; p++) {
+        const actuals = yTrueOriginal.map(row => row[p]);
+        const preds = yPredOriginal.map(row => row[p]);
+        const m = calculateMetrics(actuals, preds);
+        metricsResults.push({ name: paramNames[p], ...m });
+      }
+
+      statusText.innerText = "Menghitung Prediksi Masa Depan...";
+
+      let currentSeq = scaledFeatures.slice(-timeSteps);
+      let scaledPreds = [];
+
+      for (let s = 0; s < forecastSteps; s++) {
+        const inputTensor = tf.tensor3d([currentSeq]);
+        const predTensor = model.predict(inputTensor);
+        const predArray = (await predTensor.array())[0];
+
+        scaledPreds.push(predArray);
+        currentSeq.shift();
+        currentSeq.push(predArray);
+
+        inputTensor.dispose();
+        predTensor.dispose();
+      }
+
+      // Denormalisasi & Rekonstruksi Derajat Angin untuk Masa Depan
+      const finalPredictions = scaledPreds.map(row => {
+        const real = row.map((val, col) => {
+          const range = maxs[col] - mins[col];
+          return val * range + mins[col];
+        });
+
+        let deg = (Math.atan2(real[4], real[5]) * 180) / Math.PI;
+        if (deg < 0) deg += 360;
+
         return {
-          water_level,
-          temp,
-          humidity,
-          pressure,
-          wind_speed,
-          d_wind_sin: Math.sin(rad),
-          d_wind_cos: Math.cos(rad)
+          water_level: real[0],
+          temp: real[1],
+          humidity: real[2],
+          pressure: real[3],
+          wind_dir: deg
         };
+      });
+
+      xs.dispose(); ys.dispose(); model.dispose();
+
+      progressFill.style.width = "100%";
+      statusText.innerText = `Selesai! Berhasil memproses ${cleanDataset.length} data.`;
+
+      updateUI(dataset, finalPredictions, metricsResults);
+    } catch (err) {
+      alert("Terjadi Kesalahan: " + err.message);
+      statusText.innerText = "Gagal memproses prediksi.";
+      progressFill.style.width = "0%";
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function updateUI(historicalData, predictions, metrics) {
+    if (predictions.length > 0) {
+      document.getElementById('predWater').innerText = predictions[0].water_level.toFixed(2) + " m";
+      document.getElementById('predTemp').innerText = predictions[0].temp.toFixed(1) + " °C";
+      document.getElementById('predHum').innerText = predictions[0].humidity.toFixed(1) + " %";
+      document.getElementById('predWindDir').innerText = predictions[0].wind_dir.toFixed(0) + "°";
+    }
+
+    // UPDATE TABEL METRIK EVALUASI
+    if (metrics && metrics.length > 0) {
+      const metricsBody = document.getElementById('metricsTableBody');
+      metricsBody.innerHTML = '';
+      metrics.forEach(m => {
+        metricsBody.innerHTML += `
+          <tr>
+            <td style="font-weight: 600; color: #ffffff;">${m.name}</td>
+            <td style="color: #38bdf8; font-weight: bold;">${m.rmse.toFixed(4)}</td>
+            <td style="color: #34d399;">${m.mae.toFixed(4)}</td>
+            <td style="color: #facc15;">${m.r.toFixed(4)}</td>
+            <td style="color: #a855f7; font-weight: bold;">${m.r2.toFixed(4)}</td>
+          </tr>
+        `;
       });
     }
 
-    // 3. Fungsi Utama Pelatihan & Prediksi LSTM
-    async function startLSTMTraining() {
-      const btn = document.getElementById("btnStart");
-      const statusText = document.getElementById("statusText");
-      const progressFill = document.getElementById("progressFill");
+    const histWater = historicalData.map(d => d.water_level);
+    const histLabels = historicalData.map((_, idx) => `D-${historicalData.length - idx}`);
+    const predLabels = predictions.map((_, idx) => `P+${idx + 1}`);
 
-      btn.disabled = true;
-      statusText.innerText = "Mengambil data histori dari Firebase...";
-      progressFill.style.width = "10%";
+    waterChart.data.labels = [...histLabels, ...predLabels];
+    waterChart.data.datasets[0].data = [...histWater, ...Array(predictions.length).fill(null)];
+    waterChart.data.datasets[1].data = [
+      ...Array(histWater.length - 1).fill(null),
+      histWater[histWater.length - 1],
+      ...predictions.map(p => p.water_level)
+    ];
+    waterChart.update();
 
-      try {
-        // Ambil data dari Realtime Database
-        let snapshot = await db.ref('sensor').once('value');
-        let dataVal = snapshot.val();
-        
-        if (!dataVal) {
-          snapshot = await db.ref('cuaca/history').once('value');
-          dataVal = snapshot.val();
-        }
+    humChart.data.labels = predLabels;
+    humChart.data.datasets[0].data = predictions.map(p => p.humidity);
+    humChart.data.datasets[1].data = predictions.map(p => p.temp);
+    humChart.update();
 
-        if (!dataVal) throw new Error("Data histori tidak ditemukan di database!");
+    windChart.data.labels = predLabels;
+    windChart.data.datasets[0].data = predictions.map(p => p.wind_dir);
+    windChart.data.datasets[1].data = predictions.map(p => p.pressure);
+    windChart.update();
 
-        const cleanDataset = processRawData(dataVal);
-        if (cleanDataset.length < 10) {
-          throw new Error(`Dataset terlalu sedikit (butuh minimal 10 data histori). Data saat ini: ${cleanDataset.length}`);
-        }
+    const tableBody = document.getElementById('predictionTableBody');
+    tableBody.innerHTML = '';
 
-        statusText.innerText = `Memproses ${cleanDataset.length} sampel data...`;
-        progressFill.style.width = "30%";
+    predictions.forEach((p, idx) => {
+      tableBody.innerHTML += `
+        <tr>
+          <td>Langkah +${idx + 1}</td>
+          <td style="color: #38bdf8; font-weight: bold;">${p.water_level.toFixed(2)}</td>
+          <td>${p.temp.toFixed(1)}</td>
+          <td>${p.humidity.toFixed(1)}</td>
+          <td>${p.pressure.toFixed(1)}</td>
+          <td style="color: #a855f7;">${p.wind_dir.toFixed(0)}°</td>
+        </tr>
+      `;
+    });
+  }
 
-        // Konfigurasi Fitur
-        const features = ['water_level', 'temp', 'humidity', 'pressure', 'wind_speed', 'd_wind_sin', 'd_wind_cos'];
-        const numFeatures = features.length;
-        const timeSteps = 5;
-        const forecastSteps = 12;
-
-        // Normalisasi Min-Max
-        const mins = Array(numFeatures).fill(Infinity);
-        const maxs = Array(numFeatures).fill(-Infinity);
-
-        const processedData = cleanDataset.map(d => features.map(f => d[f]));
-
-        for (let i = 0; i < processedData.length; i++) {
-          for (let j = 0; j < numFeatures; j++) {
-            if (processedData[i][j] < mins[j]) mins[j] = processedData[i][j];
-            if (processedData[i][j] > maxs[j]) maxs[j] = processedData[i][j];
-          }
-        }
-
-        const scaledFeatures = processedData.map(row => 
-          row.map((val, col) => {
-            const range = maxs[col] === mins[col] ? 1 : (maxs[col] - mins[col]);
-            return (val - mins[col]) / range;
-          })
-        );
-
-        // Buat Sekuens Dataset Training
-        const X_train = [], Y_train = [];
-        for (let i = 0; i <= scaledFeatures.length - timeSteps - 1; i++) {
-          X_train.push(scaledFeatures.slice(i, i + timeSteps));
-          Y_train.push(scaledFeatures[i + timeSteps]);
-        }
-
-        const xs = tf.tensor3d(X_train);
-        const ys = tf.tensor2d(Y_train);
-
-        // Arsitektur Model LSTM
-        const model = tf.sequential();
-        model.add(tf.layers.lstm({ units: 32, returnSequences: false, inputShape: [timeSteps, numFeatures] }));
-        model.add(tf.layers.dense({ units: 16, activation: 'relu' }));
-        model.add(tf.layers.dense({ units: numFeatures }));
-        model.compile({ optimizer: tf.train.adam(0.005), loss: 'meanSquaredError' });
-
-        statusText.innerText = "Melatih Model LSTM...";
-        
-        await model.fit(xs, ys, {
-          epochs: 30,
-          batchSize: 8,
-          callbacks: {
-            onEpochEnd: (epoch, logs) => {
-              const pct = Math.round(((epoch + 1) / 30) * 60) + 30;
-              progressFill.style.width = pct + "%";
-              statusText.innerText = `Training Epoch ${epoch + 1}/30 - Loss: ${logs.loss.toFixed(5)}`;
-            }
-          }
-        });
-
-        xs.dispose();
-        ys.dispose();
-
-        // Autoregressive Prediction untuk Masa Depan
-        let currentSeq = scaledFeatures.slice(-timeSteps);
-        const predictions = [];
-
-        for (let s = 0; s < forecastSteps; s++) {
-          const inputTensor = tf.tensor3d([currentSeq]);
-          const predTensor = model.predict(inputTensor);
-          const predArray = (await predTensor.array())[0];
-
-          predictions.push(predArray);
-          currentSeq.shift();
-          currentSeq.push(predArray);
-
-          inputTensor.dispose();
-          predTensor.dispose();
-        }
-
-        model.dispose();
-
-        progressFill.style.width = "100%";
-        statusText.innerText = "✅ Pelatihan & Prediksi Selesai!";
-        console.log("Hasil Prediksi (Normalized):", predictions);
-
-      } catch (error) {
-        console.error(error);
-        statusText.innerText = "❌ Gagal: " + error.message;
-        progressFill.style.width = "0%";
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    // Pasang listener pada tombol saat halaman dimuat
-    document.getElementById("btnStart").addEventListener("click", startLSTMTraining);
-  </script>
+  window.onload = initCharts;
+</script>
 </body>
 </html>
