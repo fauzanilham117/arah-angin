@@ -53,16 +53,20 @@
 
     .chart-container { height: 300px; position: relative; }
 
-    .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    /* PENYESUAIAN GRID DARI 4 MENJADI 5 KOLOM */
+    .cards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
     .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; text-align: center; }
     .card-label { color: #64748b; font-size: 10px; margin-bottom: 6px; text-transform: uppercase; }
-    .card-val { font-size: 20px; font-weight: bold; color: #38bdf8; }
+    .card-val { font-size: 18px; font-weight: bold; color: #38bdf8; }
 
     table { width: 100%; border-collapse: collapse; }
     thead th { text-align: left; color: #64748b; font-size: 11px; padding: 10px; border-bottom: 1px solid #1f2937; }
     tbody td { color: #cbd5e1; font-size: 12px; padding: 10px; border-bottom: 1px solid #172033; }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1200px) {
+      .cards-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
       .cards-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
@@ -128,6 +132,10 @@
         <div class="card-val" id="predHum">-- %</div>
       </div>
       <div class="card">
+        <div class="card-label">Kecepatan Angin</div>
+        <div class="card-val" id="predWindSpeed" style="color: #f43f5e;">-- m/s</div>
+      </div>
+      <div class="card">
         <div class="card-label">Arah Angin</div>
         <div class="card-val" id="predWindDir">--°</div>
       </div>
@@ -181,10 +189,10 @@
       </div>
     </div>
 
-    <!-- GRAFIK ARAH ANGIN & TEKANAN -->
+    <!-- GRAFIK ANGIN & TEKANAN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Proyeksi Arah Angin & Tekanan Udara</div>
+        <div class="panel-title">Proyeksi Kecepatan Angin, Arah Angin & Tekanan Udara</div>
       </div>
       <div class="chart-container">
         <canvas id="lstmWindChart"></canvas>
@@ -205,12 +213,13 @@
               <th>SUHU (°C)</th>
               <th>KELEMBABAN (%)</th>
               <th>TEKANAN (hPa)</th>
+              <th>KEC. ANGIN (m/s)</th>
               <th>ARAH ANGIN (°)</th>
             </tr>
           </thead>
           <tbody id="predictionTableBody">
             <tr>
-              <td colspan="6" style="text-align: center; color: #64748b;">Klik tombol di atas untuk memulai pelatihan model.</td>
+              <td colspan="7" style="text-align: center; color: #64748b;">Klik tombol di atas untuk memulai pelatihan model.</td>
             </tr>
           </tbody>
         </table>
@@ -286,8 +295,9 @@
       data: {
         labels: [],
         datasets: [
-          { label: 'Prediksi Arah Angin (°)', data: [], borderColor: '#a855f7', tension: 0.3 },
-          { label: 'Prediksi Tekanan (hPa)', data: [], borderColor: '#10b981', tension: 0.3, yAxisID: 'y1' }
+          { label: 'Prediksi Kec. Angin (m/s)', data: [], borderColor: '#f43f5e', tension: 0.3 },
+          { label: 'Prediksi Arah Angin (°)', data: [], borderColor: '#a855f7', tension: 0.3, yAxisID: 'y1' },
+          { label: 'Prediksi Tekanan (hPa)', data: [], borderColor: '#10b981', tension: 0.3, yAxisID: 'y2' }
         ]
       },
       options: {
@@ -296,20 +306,22 @@
         plugins: { legend: { labels: { color: '#94a3b8' } } },
         scales: {
           x: { ticks: { color: '#64748b' } },
-          y: { position: 'left', min: 0, max: 360, ticks: { color: '#64748b' } },
-          y1: { position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+          y: { position: 'left', title: { display: true, text: 'Kec. Angin (m/s)', color: '#f43f5e' }, ticks: { color: '#64748b' } },
+          y1: { position: 'right', min: 0, max: 360, title: { display: true, text: 'Arah (°)', color: '#a855f7' }, ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } },
+          y2: { position: 'right', display: false, grid: { drawOnChartArea: false } }
         }
       }
     });
   }
 
-  // FUNGSI PEMROSESAN VEKTOR ANGIN & PARSING FITUR
+  // FUNGSI PEMROSESAN VEKTOR ANGIN & PARSING FITUR (DENGAN WIND SPEED)
   function processRawData(rawData) {
     return rawData.map(item => {
       const w = Number(item.water_level ?? item.tinggi_muka_air ?? item.tinggi_air ?? 0) || 0;
       const t = Number(item.temp ?? item.suhu ?? 0) || 0;
       const h = Number(item.humidity ?? item.kelembapan ?? 0) || 0;
       const p = Number(item.pressure ?? item.tekanan ?? 0) || 0;
+      const ws = Number(item.wind_speed ?? item.kecepatan_angin ?? item.speed ?? 0) || 0;
       const deg = Number(item.wind_dir ?? item.arah_angin ?? item.deg ?? 0) || 0;
 
       // Transformasi Derajat Angin ke Vektor Sinus & Kosinus
@@ -319,6 +331,7 @@
         temp: t,
         humidity: h,
         pressure: p,
+        wind_speed: ws,
         wind_u: Math.sin(rad),
         wind_v: Math.cos(rad)
       };
@@ -403,11 +416,10 @@
       const dataset = processedData.slice(-79);
 
       const features = dataset.map(d => [
-        d.water_level, d.temp, d.humidity, d.pressure, d.wind_u, d.wind_v
+        d.water_level, d.temp, d.humidity, d.pressure, d.wind_speed, d.wind_u, d.wind_v
       ]);
 
-      const numFeatures = 6;
-      // Konfigurasi Khusus untuk 79 Data
+      const numFeatures = 7; // Bertambah 1 fitur (Kecepatan Angin)
       const timeSteps = 5;       // Lookback 5 langkah
       const forecastSteps = 12;  // Prediksi 12 langkah ke depan
 
@@ -439,7 +451,7 @@
       const xs = tf.tensor3d(X_train);
       const ys = tf.tensor2d(Y_train);
 
-      // Model LSTM Ringan (16 Units untuk Mencegah Overfitting)
+      // Model LSTM Ringan (16 Units)
       const model = tf.sequential();
       model.add(tf.layers.lstm({
         units: 16,
@@ -474,23 +486,23 @@
       // Denormalisasi Data In-Sample Actual & Predicted
       const yTrueOriginal = Y_train.map(row => {
         const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
-        let deg = (Math.atan2(real[4], real[5]) * 180) / Math.PI;
+        let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
         if (deg < 0) deg += 360;
-        return [real[0], real[1], real[2], real[3], deg];
+        return [real[0], real[1], real[2], real[3], real[4], deg];
       });
 
       const yPredOriginal = trainPredArray.map(row => {
         const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
-        let deg = (Math.atan2(real[4], real[5]) * 180) / Math.PI;
+        let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
         if (deg < 0) deg += 360;
-        return [real[0], real[1], real[2], real[3], deg];
+        return [real[0], real[1], real[2], real[3], real[4], deg];
       });
 
-      // Hitung Metrik per Parameter (Water, Temp, Humidity, Pressure, Wind Dir)
-      const paramNames = ["Tinggi Air Laut (m)", "Suhu Udara (°C)", "Kelembaban (%)", "Tekanan (hPa)", "Arah Angin (°)"];
+      // Hitung Metrik per Parameter
+      const paramNames = ["Tinggi Air Laut (m)", "Suhu Udara (°C)", "Kelembaban (%)", "Tekanan (hPa)", "Kecepatan Angin (m/s)", "Arah Angin (°)"];
       const metricsResults = [];
 
-      for (let p = 0; p < 5; p++) {
+      for (let p = 0; p < 6; p++) {
         const actuals = yTrueOriginal.map(row => row[p]);
         const preds = yPredOriginal.map(row => row[p]);
         const m = calculateMetrics(actuals, preds);
@@ -515,14 +527,14 @@
         predTensor.dispose();
       }
 
-      // Denormalisasi & Rekonstruksi Derajat Angin untuk Masa Depan
+      // Denormalisasi & Rekonstruksi Derajat Angin
       const finalPredictions = scaledPreds.map(row => {
         const real = row.map((val, col) => {
           const range = maxs[col] - mins[col];
           return val * range + mins[col];
         });
 
-        let deg = (Math.atan2(real[4], real[5]) * 180) / Math.PI;
+        let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
         if (deg < 0) deg += 360;
 
         return {
@@ -530,6 +542,7 @@
           temp: real[1],
           humidity: real[2],
           pressure: real[3],
+          wind_speed: real[4],
           wind_dir: deg
         };
       });
@@ -542,7 +555,7 @@
       updateUI(dataset, finalPredictions, metricsResults);
     } catch (err) {
       alert("Terjadi Kesalahan: " + err.message);
-      statusText.innerText = "Gagal memproses prediksi.";
+      statusText.innerText = "Gagal memproses prediksi";
       progressFill.style.width = "0%";
     } finally {
       btn.disabled = false;
@@ -554,6 +567,7 @@
       document.getElementById('predWater').innerText = predictions[0].water_level.toFixed(2) + " m";
       document.getElementById('predTemp').innerText = predictions[0].temp.toFixed(1) + " °C";
       document.getElementById('predHum').innerText = predictions[0].humidity.toFixed(1) + " %";
+      document.getElementById('predWindSpeed').innerText = predictions[0].wind_speed.toFixed(1) + " m/s";
       document.getElementById('predWindDir').innerText = predictions[0].wind_dir.toFixed(0) + "°";
     }
 
@@ -593,8 +607,9 @@
     humChart.update();
 
     windChart.data.labels = predLabels;
-    windChart.data.datasets[0].data = predictions.map(p => p.wind_dir);
-    windChart.data.datasets[1].data = predictions.map(p => p.pressure);
+    windChart.data.datasets[0].data = predictions.map(p => p.wind_speed);
+    windChart.data.datasets[1].data = predictions.map(p => p.wind_dir);
+    windChart.data.datasets[2].data = predictions.map(p => p.pressure);
     windChart.update();
 
     const tableBody = document.getElementById('predictionTableBody');
@@ -608,6 +623,7 @@
           <td>${p.temp.toFixed(1)}</td>
           <td>${p.humidity.toFixed(1)}</td>
           <td>${p.pressure.toFixed(1)}</td>
+          <td style="color: #f43f5e; font-weight: bold;">${p.wind_speed.toFixed(1)}</td>
           <td style="color: #a855f7;">${p.wind_dir.toFixed(0)}°</td>
         </tr>
       `;
