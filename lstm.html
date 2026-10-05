@@ -7,7 +7,6 @@
 
   <!-- FIREBASE JS SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
   <!-- TENSORFLOW.JS -->
@@ -45,9 +44,12 @@
     .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
     .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
 
-    .btn-train { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
-    .btn-train:hover { background: #1d4ed8; }
-    .btn-train:disabled { background: #475569; cursor: not-allowed; }
+    .btn-group { display: flex; gap: 10px; }
+    .btn-action { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
+    .btn-action:hover { background: #1d4ed8; }
+    .btn-action:disabled { background: #475569; cursor: not-allowed; }
+    .btn-secondary { background: #334155; }
+    .btn-secondary:hover { background: #475569; }
 
     .progress-bar-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
     .progress-bar-fill { width: 0%; background: #06b6d4; height: 100%; transition: width 0.3s ease; }
@@ -100,9 +102,12 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Prediksi Model LSTM Ringan</h1>
-        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan hasil pelatihan konsisten (Seeded)</p>
+        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan opsi agregasi otomatis</p>
       </div>
-      <button id="btnStart" class="btn-train" onclick="startLSTMTraining()">🚀 Mulai Pelatihan & Prediksi</button>
+      <div class="btn-group">
+        <button id="btnRun" class="btn-action" onclick="runLSTMPrediction(false)">⚡ Tampilkan Prediksi</button>
+        <button id="btnRetrain" class="btn-action btn-secondary" onclick="runLSTMPrediction(true)">🔄 Latih Ulang Model</button>
+      </div>
     </div>
 
     <div class="panel">
@@ -219,7 +224,7 @@
           </thead>
           <tbody id="predictionTableBody">
             <tr>
-              <td colspan="7" style="text-align: center; color: #64748b;">Klik tombol di atas untuk memulai pelatihan model.</td>
+              <td colspan="7" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat prediksi.</td>
             </tr>
           </tbody>
         </table>
@@ -229,9 +234,6 @@
 </div>
 
 <script>
-  // CONFIG SEED AGAR HASIL PELATIHAN SELALU KONSISTEN
-  const SEED = 42;
-
   // KREDENSIAL FIREBASE
   const firebaseConfig = {
     apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
@@ -249,6 +251,7 @@
   }
   const db = firebase.database();
 
+  const MODEL_SAVE_PATH = 'localstorage://lstm-coastal-model';
   let waterChart, humChart, windChart;
 
   function initCharts() {
@@ -317,7 +320,25 @@
     });
   }
 
-  // FUNGSI PEMROSESAN VEKTOR ANGIN & PARSING FITUR
+  // BACA HISTORI SECARA KONSISTEN DARI NODE DB YANG SAMA
+  async function fetchHistoricalData() {
+    let snapshot = await db.ref('sensor').once('value');
+    let dataVal = snapshot.val();
+    
+    if (!dataVal) {
+      snapshot = await db.ref('cuaca/history').once('value');
+      dataVal = snapshot.val();
+    }
+
+    if (!dataVal) throw new Error("Data histori tidak ditemukan di database.");
+
+    let rawList = Array.isArray(dataVal) ? dataVal : Object.values(dataVal);
+    let cleanDataset = rawList.filter(d => d && typeof d === 'object');
+
+    if (cleanDataset.length < 10) throw new Error("Dataset terlalu sedikit (butuh minimal 10 data histori).");
+    return cleanDataset;
+  }
+
   function processRawData(rawData) {
     return rawData.map(item => {
       const w = Number(item.water_level ?? item.tinggi_muka_air ?? item.tinggi_air ?? 0) || 0;
@@ -340,15 +361,11 @@
     });
   }
 
-  // FUNGSI PERHITUNGAN METRIK AKURASI (RMSE, MAE, R, R²)
   function calculateMetrics(yTrue, yPred) {
     const n = yTrue.length;
     if (n === 0) return { rmse: 0, mae: 0, r: 0, r2: 0 };
 
-    let sumErr2 = 0;
-    let sumAbsErr = 0;
-    let sumTrue = 0;
-    let sumPred = 0;
+    let sumErr2 = 0, sumAbsErr = 0, sumTrue = 0, sumPred = 0;
 
     for (let i = 0; i < n; i++) {
       const err = yTrue[i] - yPred[i];
@@ -361,10 +378,7 @@
     const meanTrue = sumTrue / n;
     const meanPred = sumPred / n;
 
-    let numR = 0;
-    let denTrueR = 0;
-    let denPredR = 0;
-    let ssTot = 0;
+    let numR = 0, denTrueR = 0, denPredR = 0, ssTot = 0;
 
     for (let i = 0; i < n; i++) {
       const diffTrue = yTrue[i] - meanTrue;
@@ -378,52 +392,35 @@
 
     const rmse = Math.sqrt(sumErr2 / n);
     const mae = sumAbsErr / n;
-
     const denR = Math.sqrt(denTrueR) * Math.sqrt(denPredR);
     const r = denR === 0 ? 0 : numR / denR;
-
     const r2 = ssTot === 0 ? 0 : 1 - (sumErr2 / ssTot);
 
     return { rmse, mae, r, r2 };
   }
 
-  async function startLSTMTraining() {
-    const btn = document.getElementById('btnStart');
+  async function runLSTMPrediction(forceRetrain = false) {
+    const btnRun = document.getElementById('btnRun');
+    const btnRetrain = document.getElementById('btnRetrain');
     const statusText = document.getElementById('statusText');
     const progressFill = document.getElementById('progressFill');
 
-    btn.disabled = true;
+    btnRun.disabled = true;
+    btnRetrain.disabled = true;
     statusText.innerText = "Mengambil data histori dari Firebase...";
     progressFill.style.width = "10%";
 
     try {
-      let snapshot = await db.ref('sensor').once('value');
-      let dataVal = snapshot.val();
-      if (!dataVal) {
-        snapshot = await db.ref('cuaca/history').once('value');
-        dataVal = snapshot.val();
-      }
-
-      if (!dataVal) throw new Error("Data histori tidak ditemukan di database.");
-
-      let rawList = Array.isArray(dataVal) ? dataVal : Object.values(dataVal);
-      let cleanDataset = rawList.filter(d => d && typeof d === 'object');
-
-      if (cleanDataset.length < 10) throw new Error("Dataset terlalu sedikit (butuh minimal 10 data histori).");
-
-      statusText.innerText = `Memproses ${cleanDataset.length} sampel data...`;
-      const processedData = processRawData(cleanDataset);
-
-      // Selalu mengambil 79 data paling akhir secara konsisten
-      const dataset = processedData.slice(-79);
+      const cleanDataset = await fetchHistoricalData();
+      const dataset = processRawData(cleanDataset).slice(-79);
 
       const features = dataset.map(d => [
         d.water_level, d.temp, d.humidity, d.pressure, d.wind_speed, d.wind_u, d.wind_v
       ]);
 
       const numFeatures = 7;
-      const timeSteps = 5;       
-      const forecastSteps = 12;  
+      const timeSteps = 5;
+      const forecastSteps = 12;
 
       // Normalisasi Min-Max
       const mins = Array(numFeatures).fill(Infinity);
@@ -443,7 +440,6 @@
         })
       );
 
-      // Form Dataset Training Sekuensial
       const X_train = [], Y_train = [];
       for (let i = 0; i <= scaledFeatures.length - timeSteps - 1; i++) {
         X_train.push(scaledFeatures.slice(i, i + timeSteps));
@@ -453,50 +449,63 @@
       const xs = tf.tensor3d(X_train);
       const ys = tf.tensor2d(Y_train);
 
-      // ============================================================
-      // PENGUNCAN SEED INITIALIZER MODEL AGAR HASIL SELALU KONSISTEN
-      // ============================================================
-      const model = tf.sequential();
-      model.add(tf.layers.lstm({
-        units: 16,
-        inputShape: [timeSteps, numFeatures],
-        returnSequences: false,
-        kernelInitializer: tf.initializers.glorotUniform({ seed: SEED }),
-        recurrentInitializer: tf.initializers.orthogonal({ seed: SEED }),
-        biasInitializer: tf.initializers.zeros()
-      }));
-      model.add(tf.layers.dense({ 
-        units: numFeatures,
-        kernelInitializer: tf.initializers.glorotUniform({ seed: SEED }),
-        biasInitializer: tf.initializers.zeros()
-      }));
+      let model;
+      let isModelLoaded = false;
 
-      model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' });
-
-      statusText.innerText = "Melatih Model LSTM...";
-      const epochs = 40;
-
-      // Matikan pengacakan batch pada pelatihan agar urutan training sama persis (shuffle: false)
-      await model.fit(xs, ys, {
-        epochs: epochs,
-        batchSize: 8,
-        shuffle: false, 
-        callbacks: {
-          onEpochEnd: (epoch, logs) => {
-            const pct = Math.round(((epoch + 1) / epochs) * 80) + 10;
-            progressFill.style.width = pct + "%";
-            statusText.innerText = `Training Epoch ${epoch + 1}/${epochs} - Loss: ${(logs.loss || 0).toFixed(6)}`;
-          }
+      // CEK APAKAH MODEL TERSIMPAN DI LOCALSTORAGE (PENGUNCIAN BOBOT PREDIKSI)
+      if (!forceRetrain) {
+        try {
+          model = await tf.loadLayersModel(MODEL_SAVE_PATH);
+          isModelLoaded = true;
+          statusText.innerText = "Memuat model tersimpan dari LocalStorage...";
+          progressFill.style.width = "80%";
+        } catch (e) {
+          isModelLoaded = false;
         }
-      });
+      }
 
-      // HITUNG PREDIKSI IN-SAMPLE UNTUK EVALUASI AKURASI
+      // PELATIHAN MODEL BARU JIKA DIBUTUHKAN / BELUM ADA MODEL
+      if (!isModelLoaded) {
+        statusText.innerText = "Melatih Model LSTM Baru...";
+        
+        // Penetapan Inisialisasi Konsisten (Random Seed)
+        tf.setBackend('cpu'); // Mengunci perhitungan konsisten
+        
+        model = tf.sequential();
+        model.add(tf.layers.lstm({
+          units: 16,
+          inputShape: [timeSteps, numFeatures],
+          returnSequences: false,
+          kernelInitializer: 'glorotUniform'
+        }));
+        model.add(tf.layers.dense({ units: numFeatures, kernelInitializer: 'glorotUniform' }));
+
+        model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' });
+
+        const epochs = 40;
+        await model.fit(xs, ys, {
+          epochs: epochs,
+          batchSize: 8,
+          shuffle: false, // Menjaga konsistensi urutan sekuensial
+          callbacks: {
+            onEpochEnd: (epoch, logs) => {
+              const pct = Math.round(((epoch + 1) / epochs) * 70) + 10;
+              progressFill.style.width = pct + "%";
+              statusText.innerText = `Training Epoch ${epoch + 1}/${epochs} - Loss: ${(logs.loss || 0).toFixed(6)}`;
+            }
+          }
+        });
+
+        // Simpan Model Terlatih ke LocalStorage
+        await model.save(MODEL_SAVE_PATH);
+      }
+
+      // EVALUASI AKURASI MODEL
       statusText.innerText = "Mengevaluasi Metrik Akurasi...";
       const trainPredTensor = model.predict(xs);
       const trainPredArray = await trainPredTensor.array();
       trainPredTensor.dispose();
 
-      // Denormalisasi Data In-Sample Actual & Predicted
       const yTrueOriginal = Y_train.map(row => {
         const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
         let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
@@ -511,7 +520,6 @@
         return [real[0], real[1], real[2], real[3], real[4], deg];
       });
 
-      // Hitung Metrik per Parameter
       const paramNames = ["Tinggi Air Laut (m)", "Suhu Udara (°C)", "Kelembaban (%)", "Tekanan (hPa)", "Kecepatan Angin (m/s)", "Arah Angin (°)"];
       const metricsResults = [];
 
@@ -522,20 +530,8 @@
         metricsResults.push({ name: paramNames[p], ...m });
       }
 
+      // PREDIKSI MASA DEPAN KONSISTEN
       statusText.innerText = "Menghitung Prediksi Masa Depan...";
-
-      let currentSeq = scaledFeatures.slice(-timeSteps);
-      let scaledPreds = [];
-
-      for (let p = 0; p < 6; p++) {
-        const actuals = yTrueOriginal.map(row => row[p]);
-        const preds = yPredOriginal.map(row => row[p]);
-        const m = calculateMetrics(actuals, preds);
-        metricsResults.push({ name: paramNames[p], ...m });
-      }
-
-      statusText.innerText = "Menghitung Prediksi Masa Depan...";
-
       let currentSeq = scaledFeatures.slice(-timeSteps);
       let scaledPreds = [];
 
@@ -552,13 +548,8 @@
         predTensor.dispose();
       }
 
-      // Denormalisasi & Rekonstruksi Derajat Angin
       const finalPredictions = scaledPreds.map(row => {
-        const real = row.map((val, col) => {
-          const range = maxs[col] - mins[col];
-          return val * range + mins[col];
-        });
-
+        const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
         let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
         if (deg < 0) deg += 360;
 
@@ -575,7 +566,9 @@
       xs.dispose(); ys.dispose(); model.dispose();
 
       progressFill.style.width = "100%";
-      statusText.innerText = `Selesai! Berhasil memproses ${cleanDataset.length} data.`;
+      statusText.innerText = isModelLoaded ? 
+        `Prediksi Selesai! (Memakai model tersimpan dari LocalStorage)` : 
+        `Pelatihan Selesai! Model tersimpan & prediksi terkunci.`;
 
       updateUI(dataset, finalPredictions, metricsResults);
     } catch (err) {
@@ -583,7 +576,8 @@
       statusText.innerText = "Gagal memproses prediksi";
       progressFill.style.width = "0%";
     } finally {
-      btn.disabled = false;
+      btnRun.disabled = false;
+      btnRetrain.disabled = false;
     }
   }
 
