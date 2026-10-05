@@ -7,6 +7,7 @@
 
   <!-- FIREBASE JS SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
   <!-- TENSORFLOW.JS -->
@@ -53,7 +54,6 @@
 
     .chart-container { height: 300px; position: relative; }
 
-    /* PENYESUAIAN GRID DARI 4 MENJADI 5 KOLOM */
     .cards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
     .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; text-align: center; }
     .card-label { color: #64748b; font-size: 10px; margin-bottom: 6px; text-transform: uppercase; }
@@ -100,7 +100,7 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Prediksi Model LSTM Ringan</h1>
-        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan opsi agregasi otomatis</p>
+        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan hasil pelatihan konsisten (Seeded)</p>
       </div>
       <button id="btnStart" class="btn-train" onclick="startLSTMTraining()">🚀 Mulai Pelatihan & Prediksi</button>
     </div>
@@ -229,6 +229,9 @@
 </div>
 
 <script>
+  // CONFIG SEED AGAR HASIL PELATIHAN SELALU KONSISTEN
+  const SEED = 42;
+
   // KREDENSIAL FIREBASE
   const firebaseConfig = {
     apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
@@ -314,7 +317,7 @@
     });
   }
 
-  // FUNGSI PEMROSESAN VEKTOR ANGIN & PARSING FITUR (DENGAN WIND SPEED)
+  // FUNGSI PEMROSESAN VEKTOR ANGIN & PARSING FITUR
   function processRawData(rawData) {
     return rawData.map(item => {
       const w = Number(item.water_level ?? item.tinggi_muka_air ?? item.tinggi_air ?? 0) || 0;
@@ -324,7 +327,6 @@
       const ws = Number(item.wind_speed ?? item.kecepatan_angin ?? item.speed ?? 0) || 0;
       const deg = Number(item.wind_dir ?? item.arah_angin ?? item.deg ?? 0) || 0;
 
-      // Transformasi Derajat Angin ke Vektor Sinus & Kosinus
       const rad = (deg * Math.PI) / 180;
       return {
         water_level: w,
@@ -412,18 +414,18 @@
       statusText.innerText = `Memproses ${cleanDataset.length} sampel data...`;
       const processedData = processRawData(cleanDataset);
 
-      // Gunakan seluruh data yang tersedia (misalnya 79 data)
+      // Selalu mengambil 79 data paling akhir secara konsisten
       const dataset = processedData.slice(-79);
 
       const features = dataset.map(d => [
         d.water_level, d.temp, d.humidity, d.pressure, d.wind_speed, d.wind_u, d.wind_v
       ]);
 
-      const numFeatures = 7; // Bertambah 1 fitur (Kecepatan Angin)
-      const timeSteps = 5;       // Lookback 5 langkah
-      const forecastSteps = 12;  // Prediksi 12 langkah ke depan
+      const numFeatures = 7;
+      const timeSteps = 5;       
+      const forecastSteps = 12;  
 
-      // Normalisasi Min-Max dengan Proteksi Division by Zero
+      // Normalisasi Min-Max
       const mins = Array(numFeatures).fill(Infinity);
       const maxs = Array(numFeatures).fill(-Infinity);
 
@@ -451,23 +453,34 @@
       const xs = tf.tensor3d(X_train);
       const ys = tf.tensor2d(Y_train);
 
-      // Model LSTM Ringan (16 Units)
+      // ============================================================
+      // PENGUNCAN SEED INITIALIZER MODEL AGAR HASIL SELALU KONSISTEN
+      // ============================================================
       const model = tf.sequential();
       model.add(tf.layers.lstm({
         units: 16,
         inputShape: [timeSteps, numFeatures],
-        returnSequences: false
+        returnSequences: false,
+        kernelInitializer: tf.initializers.glorotUniform({ seed: SEED }),
+        recurrentInitializer: tf.initializers.orthogonal({ seed: SEED }),
+        biasInitializer: tf.initializers.zeros()
       }));
-      model.add(tf.layers.dense({ units: numFeatures }));
+      model.add(tf.layers.dense({ 
+        units: numFeatures,
+        kernelInitializer: tf.initializers.glorotUniform({ seed: SEED }),
+        biasInitializer: tf.initializers.zeros()
+      }));
 
       model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' });
 
       statusText.innerText = "Melatih Model LSTM...";
       const epochs = 40;
 
+      // Matikan pengacakan batch pada pelatihan agar urutan training sama persis (shuffle: false)
       await model.fit(xs, ys, {
         epochs: epochs,
         batchSize: 8,
+        shuffle: false, 
         callbacks: {
           onEpochEnd: (epoch, logs) => {
             const pct = Math.round(((epoch + 1) / epochs) * 80) + 10;
@@ -501,6 +514,18 @@
       // Hitung Metrik per Parameter
       const paramNames = ["Tinggi Air Laut (m)", "Suhu Udara (°C)", "Kelembaban (%)", "Tekanan (hPa)", "Kecepatan Angin (m/s)", "Arah Angin (°)"];
       const metricsResults = [];
+
+      for (let p = 0; p < 6; p++) {
+        const actuals = yTrueOriginal.map(row => row[p]);
+        const preds = yPredOriginal.map(row => row[p]);
+        const m = calculateMetrics(actuals, preds);
+        metricsResults.push({ name: paramNames[p], ...m });
+      }
+
+      statusText.innerText = "Menghitung Prediksi Masa Depan...";
+
+      let currentSeq = scaledFeatures.slice(-timeSteps);
+      let scaledPreds = [];
 
       for (let p = 0; p < 6; p++) {
         const actuals = yTrueOriginal.map(row => row[p]);
@@ -571,7 +596,6 @@
       document.getElementById('predWindDir').innerText = predictions[0].wind_dir.toFixed(0) + "°";
     }
 
-    // UPDATE TABEL METRIK EVALUASI
     if (metrics && metrics.length > 0) {
       const metricsBody = document.getElementById('metricsTableBody');
       metricsBody.innerHTML = '';
