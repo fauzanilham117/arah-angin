@@ -3,256 +3,162 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prediksi LSTM - Monitoring Pesisir (79 Data)</title>
-
-  <!-- FIREBASE JS SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
-  <!-- TENSORFLOW.JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
-
-  <!-- CHART.JS -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>Prediksi Deret Waktu LSTM</title>
+  
+  <!-- CDN TensorFlow.js & Firebase -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  
+  <!-- Pastikan file lstm.js berada di folder yang sama dengan file html ini -->
+  <script src="lstm.js"></script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0b1220; color: #e5e7eb; min-height: 100vh; }
-    .app { display: flex; min-height: 100vh; }
-
-    /* SIDEBAR */
-    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
-    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; padding: 0 8px; }
-    .brand-icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 21px; }
-    .brand-text h2 { font-size: 16px; color: #ffffff; margin-bottom: 2px; }
-    .brand-text p { color: #94a3b8; font-size: 11px; }
-    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; }
-    .menu { display: flex; flex-direction: column; gap: 5px; }
-    .menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 9px; color: #94a3b8; cursor: pointer; transition: 0.2s; font-size: 13px; text-decoration: none; }
-    .menu-item:hover { background: #1e293b; color: #ffffff; }
-    .menu-item.active { background: #1d4ed8; color: #ffffff; }
-    .menu-icon { width: 20px; text-align: center; font-size: 16px; }
-
-    /* MAIN CONTENT */
-    .main { margin-left: 250px; width: calc(100% - 250px); min-height: 100vh; padding: 25px; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .page-title h1 { font-size: 24px; color: #ffffff; margin-bottom: 4px; }
-    .page-title p { font-size: 12px; color: #64748b; }
-
-    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-    .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
-    .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
-
-    .btn-train { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
-    .btn-train:hover { background: #1d4ed8; }
-    .btn-train:disabled { background: #475569; cursor: not-allowed; }
-
-    .progress-bar-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
-    .progress-bar-fill { width: 0%; background: #06b6d4; height: 100%; transition: width 0.3s ease; }
-
-    .chart-container { height: 300px; position: relative; }
-
-    .cards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
-    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; text-align: center; }
-    .card-label { color: #64748b; font-size: 10px; margin-bottom: 6px; text-transform: uppercase; }
-    .card-val { font-size: 18px; font-weight: bold; color: #38bdf8; }
-
-    table { width: 100%; border-collapse: collapse; }
-    thead th { text-align: left; color: #64748b; font-size: 11px; padding: 10px; border-bottom: 1px solid #1f2937; }
-    tbody td { color: #cbd5e1; font-size: 12px; padding: 10px; border-bottom: 1px solid #172033; }
-
-    @media (max-width: 1200px) {
-      .cards-grid { grid-template-columns: repeat(3, 1fr); }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f7f6;
     }
-    @media (max-width: 768px) {
-      .cards-grid { grid-template-columns: repeat(2, 1fr); }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 650px;
+      margin: 0 auto;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 15px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 5px;
+      display: none;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .info { background-color: #e7f3fe; color: #31708f; border: 1px solid #bce8f1; }
+    .success { background-color: #dff0d8; color: #3c763d; border: 1px solid #d6e9c6; }
+    .error { background-color: #f2dede; color: #a94442; border: 1px solid #ebccd1; }
+    pre {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
 
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-icon">🌊</div>
-      <div class="brand-text">
-        <h2>Monitoring Pesisir</h2>
-        <p>IoT Environmental System</p>
-      </div>
+  <div class="card">
+    <h2>Sistem Prediksi Cuaca & Air Laut (LSTM)</h2>
+    <p>Klik tombol di bawah untuk mengambil data dari Firebase dan menjalankan model prediksi.</p>
+    
+    <button id="btnMulai">🚀 Mulai Pelatihan & Prediksi</button>
+    
+    <div id="status"></div>
+    <div id="outputData" style="display:none; margin-top:15px;">
+      <h4>Hasil Prediksi Pertama:</h4>
+      <pre id="jsonResult"></pre>
     </div>
+  </div>
 
-    <div class="menu-title">Menu</div>
-    <div class="menu">
-      <a href="index.html" class="menu-item">
-        <span class="menu-icon">📊</span>
-        <span>Dashboard</span>
-      </a>
-      <a href="lstm.html" class="menu-item active">
-        <span class="menu-icon">🤖</span>
-        <span>Prediksi LSTM</span>
-      </a>
-    </div>
-  </aside>
+  <script>
+    // ⚠️ SAMAKAN KONFIGURASI DENGAN FIREBASE ANDA
+    const firebaseConfig = {
+      apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
+      authDomain: "https://arah-angin-76f91.firebaseapp.com",
+      databaseURL: "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "arah-angin-76f91",
+      storageBucket: "https://arah-angin-76f91.firebasestorage.app",
+      messagingSenderId: "937712967453",
+      appId: "1:937712967453:web:36e81a289fe2a33b694bf4",
+    };
 
-  <main class="main">
-    <div class="topbar">
-      <div class="page-title">
-        <h1>Prediksi Model LSTM Ringan</h1>
-        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan agregasi 6 parameter utama</p>
-      </div>
-      <button id="btnStart" class="btn-train" onclick="startLSTMTraining()">🚀 Mulai Pelatihan & Prediksi</button>
-    </div>
+    // Inisialisasi Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
 
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <div class="panel-title">Status Model Training</div>
-          <div class="panel-subtitle" id="statusText">Siap memproses data histori...</div>
-        </div>
-      </div>
-      <div class="progress-bar-bg">
-        <div id="progressFill" class="progress-bar-fill"></div>
-      </div>
-    </div>
+    // Elemen UI
+    const btnMulai = document.getElementById("btnMulai");
+    const statusDiv = document.getElementById("status");
+    const outputDataDiv = document.getElementById("outputData");
+    const jsonResult = document.getElementById("jsonResult");
 
-    <!-- CARDS PREDIKSI STEPS PERTAMA -->
-    <div class="cards-grid">
-      <div class="card">
-        <div class="card-label">Tinggi Air Laut</div>
-        <div class="card-val" id="predWater">-- m</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Suhu Udara</div>
-        <div class="card-val" id="predTemp">-- °C</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Kelembaban</div>
-        <div class="card-val" id="predHum">-- %</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Arah Angin</div>
-        <div class="card-val" id="predWindDir">--°</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Kecepatan Angin</div>
-        <div class="card-val" id="predWindSpeed" style="color: #f97316;">-- m/s</div>
-      </div>
-    </div>
+    function showStatus(message, type) {
+      statusDiv.style.display = "block";
+      statusDiv.className = type;
+      statusDiv.innerHTML = message;
+    }
 
-    <!-- TABEL EVALUASI METRIK AKURASI -->
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi)</div>
-          <div class="panel-subtitle">Nilai evaluasi dihitung berdasarkan perbandingan data aktual vs prediksi pada data histori</div>
-        </div>
-      </div>
-      <div style="overflow-x: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>PARAMETER</th>
-              <th>RMSE</th>
-              <th>MAE</th>
-              <th>R (KORELASI)</th>
-              <th>R² (DETERMINASI)</th>
-            </tr>
-          </thead>
-          <tbody id="metricsTableBody">
-            <tr>
-              <td colspan="5" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat performa model.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    // Event Listener Tombol
+    btnMulai.addEventListener("click", async () => {
+      btnMulai.disabled = true;
+      outputDataDiv.style.display = "none";
+      showStatus("🔄 Memeriksa koneksi & mengambil data dari Firebase...", "info");
 
-    <!-- GRAFIK TINGGI AIR LAUT -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">Proyeksi Tinggi Muka Air Laut (Histori vs Prediksi)</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="lstmWaterChart"></canvas>
-      </div>
-    </div>
+      try {
+        // 1. Verifikasi pustaka LSTMPredictor
+        if (typeof LSTMPredictor === "undefined") {
+          throw new Error("File 'lstm.js' tidak terdeteksi. Pastikan file 'lstm.js' berada di dalam folder yang sama dengan 'lstm.html'.");
+        }
 
-    <!-- GRAFIK KELEMBABAN & SUHU -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">Proyeksi Suhu & Kelembaban Udara</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="lstmHumChart"></canvas>
-      </div>
-    </div>
+        // 2. Ambil Data dari Firebase (Ubah 'sensor' jika nama node di Realtime Database Anda berbeda)
+        const nodeName = "sensor"; 
+        const snapshot = await db.ref(nodeName).once("value");
+        const rawData = snapshot.val();
 
-    <!-- GRAFIK ARAH, KECEPATAN ANGIN & TEKANAN -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">Proyeksi Angin (Arah & Kecepatan) & Tekanan Udara</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="lstmWindChart"></canvas>
-      </div>
-    </div>
+        if (!rawData) {
+          throw new Error(`Data pada node '${nodeName}' tidak ditemukan atau kosong. Periksa Realtime Database Firebase Anda.`);
+        }
 
-    <!-- TABEL OUTPUT -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">Detail Hasil Prediksi Langkah Selanjutnya</div>
-      </div>
-      <div style="overflow-x: auto; max-height: 400px;">
-        <table>
-          <thead>
-            <tr>
-              <th>LANGKAH KE-</th>
-              <th>TINGGI AIR (m)</th>
-              <th>SUHU (°C)</th>
-              <th>KELEMBABAN (%)</th>
-              <th>TEKANAN (hPa)</th>
-              <th>ARAH ANGIN (°)</th>
-              <th>KECEPATAN ANGIN (m/s)</th>
-            </tr>
-          </thead>
-          <tbody id="predictionTableBody">
-            <tr>
-              <td colspan="7" style="text-align: center; color: #64748b;">Klik tombol di atas untuk memulai pelatihan model.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </main>
-</div>
+        showStatus("⚙️ Memulai proses pelatihan model LSTM...", "info");
 
-<script>
-  // KREDENSIAL FIREBASE
-  const firebaseConfig = {
-    apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
-    authDomain: "arah-angin-76f91.firebaseapp.com",
-    databaseURL: "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "arah-angin-76f91",
-    storageBucket: "arah-angin-76f91.firebasestorage.app",
-    messagingSenderId: "937712967453",
-    appId: "1:937712967453:web:36e81a289fe2a33b694bf4",
-    measurementId: "G-YKXYC252NV"
-  };
+        // 3. Jalankan Prediksi LSTM
+        const result = await LSTMPredictor.run(
+          rawData, 
+          24, // Lookback Hours
+          12, // Forecast Steps
+          (epoch, total, loss) => {
+            showStatus(`⏳ Pelatihan Model: Epoch <b>${epoch}/${total}</b><br>Loss: <b>${loss.toFixed(6)}</b>`, "info");
+          }
+        );
 
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  const db = firebase.database();
+        // 4. Tampilkan Hasil Prediksi
+        showStatus(`✅ <b>Prediksi Berhasil!</b><br>Telah diprediksi ${result.predictions.length} langkah ke depan.`, "success");
+        
+        jsonResult.innerText = JSON.stringify(result.predictions, null, 2);
+        outputDataDiv.style.display = "block";
 
-  let waterChart, humChart, windChart;
+      } catch (error) {
+        console.error("Error Detail:", error);
+        showStatus(`❌ <b>Gagal Menjalankan Prediksi:</b><br>${error.message}`, "error");
+      } finally {
+        btnMulai.disabled = false;
+      }
+    });
+  </script>
 
-  function initCharts() {
-    const ctxWater = document.getElementById('lstmWaterChart').getContext('2d');
-    waterChart = new Chart(ctxWater, {
-      type: 'line',
-      data: {
-        labels: [],
+</body>
+</html>
+,
         datasets: [
           { label: 'Histori Aktual (m)', data: [], borderColor: '#3b82f6', tension: 0.3 },
           { label: 'Prediksi LSTM (m)', data: [], borderColor: '#ef4444', borderDash: [5, 5], tension: 0.3 }
