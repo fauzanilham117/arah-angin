@@ -53,16 +53,19 @@
 
     .chart-container { height: 300px; position: relative; }
 
-    .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .cards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
     .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; text-align: center; }
     .card-label { color: #64748b; font-size: 10px; margin-bottom: 6px; text-transform: uppercase; }
-    .card-val { font-size: 20px; font-weight: bold; color: #38bdf8; }
+    .card-val { font-size: 18px; font-weight: bold; color: #38bdf8; }
 
     table { width: 100%; border-collapse: collapse; }
     thead th { text-align: left; color: #64748b; font-size: 11px; padding: 10px; border-bottom: 1px solid #1f2937; }
     tbody td { color: #cbd5e1; font-size: 12px; padding: 10px; border-bottom: 1px solid #172033; }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1200px) {
+      .cards-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
       .cards-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
@@ -96,7 +99,7 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Prediksi Model LSTM Ringan</h1>
-        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan opsi agregasi otomatis</p>
+        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan agregasi 6 parameter utama</p>
       </div>
       <button id="btnStart" class="btn-train" onclick="startLSTMTraining()">🚀 Mulai Pelatihan & Prediksi</button>
     </div>
@@ -131,6 +134,38 @@
         <div class="card-label">Arah Angin</div>
         <div class="card-val" id="predWindDir">--°</div>
       </div>
+      <div class="card">
+        <div class="card-label">Kecepatan Angin</div>
+        <div class="card-val" id="predWindSpeed" style="color: #f97316;">-- m/s</div>
+      </div>
+    </div>
+
+    <!-- TABEL EVALUASI METRIK AKURASI -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi)</div>
+          <div class="panel-subtitle">Nilai evaluasi dihitung berdasarkan perbandingan data aktual vs prediksi pada data histori</div>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>PARAMETER</th>
+              <th>RMSE</th>
+              <th>MAE</th>
+              <th>R (KORELASI)</th>
+              <th>R² (DETERMINASI)</th>
+            </tr>
+          </thead>
+          <tbody id="metricsTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat performa model.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- GRAFIK TINGGI AIR LAUT -->
@@ -153,10 +188,10 @@
       </div>
     </div>
 
-    <!-- GRAFIK ARAH ANGIN & TEKANAN -->
+    <!-- GRAFIK ARAH, KECEPATAN ANGIN & TEKANAN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Proyeksi Arah Angin & Tekanan Udara</div>
+        <div class="panel-title">Proyeksi Angin (Arah & Kecepatan) & Tekanan Udara</div>
       </div>
       <div class="chart-container">
         <canvas id="lstmWindChart"></canvas>
@@ -178,11 +213,12 @@
               <th>KELEMBABAN (%)</th>
               <th>TEKANAN (hPa)</th>
               <th>ARAH ANGIN (°)</th>
+              <th>KECEPATAN ANGIN (m/s)</th>
             </tr>
           </thead>
           <tbody id="predictionTableBody">
             <tr>
-              <td colspan="6" style="text-align: center; color: #64748b;">Klik tombol di atas untuk memulai pelatihan model.</td>
+              <td colspan="7" style="text-align: center; color: #64748b;">Klik tombol di atas untuk memulai pelatihan model.</td>
             </tr>
           </tbody>
         </table>
@@ -248,6 +284,257 @@
           x: { ticks: { color: '#64748b' } },
           y: { position: 'left', ticks: { color: '#64748b' } },
           y1: { position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+
+    const ctxWind = document.getElementById('lstmWindChart').getContext('2d');
+    windChart = new Chart(ctxWind, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Prediksi Arah Angin (°)', data: [], borderColor: '#a855f7', tension: 0.3 },
+          { label: 'Prediksi Tekanan (hPa)', data: [], borderColor: '#10b981', tension: 0.3, yAxisID: 'y1' },
+          { label: 'Prediksi Kecepatan Angin (m/s)', data: [], borderColor: '#f97316', tension: 0.3, yAxisID: 'y2' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        scales: {
+          x: { ticks: { color: '#64748b' } },
+          y: { position: 'left', min: 0, max: 360, ticks: { color: '#64748b' } },
+          y1: { position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } },
+          y2: { position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+
+  // FUNGSI PEMROSESAN VEKTOR ANGIN, KECEPATAN & PARSING FITUR
+  function processRawData(rawData) {
+    return rawData.map(item => {
+      const w = Number(item.water_level ?? item.tinggi_muka_air ?? item.tinggi_air ?? 0) || 0;
+      const t = Number(item.temp ?? item.suhu ?? 0) || 0;
+      const h = Number(item.humidity ?? item.kelembapan ?? 0) || 0;
+      const p = Number(item.pressure ?? item.tekanan ?? 0) || 0;
+      const deg = Number(item.wind_dir ?? item.arah_angin ?? item.deg ?? 0) || 0;
+      const s = Number(item.wind_speed ?? item.kecepatan_angin ?? item.speed ?? 0) || 0;
+
+      // Transformasi Derajat Angin ke Vektor Sinus & Kosinus
+      const rad = (deg * Math.PI) / 180;
+      return {
+        water_level: w,
+        temp: t,
+        humidity: h,
+        pressure: p,
+        wind_speed: s,
+        wind_u: Math.sin(rad),
+        wind_v: Math.cos(rad)
+      };
+    });
+  }
+
+  // FUNGSI PERHITUNGAN METRIK AKURASI (RMSE, MAE, R, R²)
+  function calculateMetrics(yTrue, yPred) {
+    const n = yTrue.length;
+    if (n === 0) return { rmse: 0, mae: 0, r: 0, r2: 0 };
+
+    let sumErr2 = 0;
+    let sumAbsErr = 0;
+    let sumTrue = 0;
+    let sumPred = 0;
+
+    for (let i = 0; i < n; i++) {
+      const err = yTrue[i] - yPred[i];
+      sumErr2 += err * err;
+      sumAbsErr += Math.abs(err);
+      sumTrue += yTrue[i];
+      sumPred += yPred[i];
+    }
+
+    const meanTrue = sumTrue / n;
+    const meanPred = sumPred / n;
+
+    let numR = 0;
+    let denTrueR = 0;
+    let denPredR = 0;
+    let ssTot = 0;
+
+    for (let i = 0; i < n; i++) {
+      const diffTrue = yTrue[i] - meanTrue;
+      const diffPred = yPred[i] - meanPred;
+
+      numR += diffTrue * diffPred;
+      denTrueR += diffTrue * diffTrue;
+      denPredR += diffPred * diffPred;
+      ssTot += diffTrue * diffTrue;
+    }
+
+    const rmse = Math.sqrt(sumErr2 / n);
+    const mae = sumAbsErr / n;
+
+    const denR = Math.sqrt(denTrueR) * Math.sqrt(denPredR);
+    const r = denR === 0 ? 0 : numR / denR;
+
+    const r2 = ssTot === 0 ? 0 : 1 - (sumErr2 / ssTot);
+
+    return { rmse, mae, r, r2 };
+  }
+
+  async function startLSTMTraining() {
+    const btn = document.getElementById('btnStart');
+    const statusText = document.getElementById('statusText');
+    const progressFill = document.getElementById('progressFill');
+
+    btn.disabled = true;
+    statusText.innerText = "Mengambil data histori dari Firebase...";
+    progressFill.style.width = "10%";
+
+    try {
+      let snapshot = await db.ref('sensor').once('value');
+      let dataVal = snapshot.val();
+      if (!dataVal) {
+        snapshot = await db.ref('cuaca/history').once('value');
+        dataVal = snapshot.val();
+      }
+
+      if (!dataVal) throw new Error("Data histori tidak ditemukan di database.");
+
+      let rawList = Array.isArray(dataVal) ? dataVal : Object.values(dataVal);
+      let cleanDataset = rawList.filter(d => d && typeof d === 'object');
+
+      if (cleanDataset.length < 10) throw new Error("Dataset terlalu sedikit (butuh minimal 10 data histori).");
+
+      statusText.innerText = `Memproses ${cleanDataset.length} sampel data...`;
+      const processedData = processRawData(cleanDataset);
+
+      // Gunakan seluruh data yang tersedia (misalnya 79 data)
+      const dataset = processedData.slice(-79);
+
+      const features = dataset.map(d => [
+        d.water_level, d.temp, d.humidity, d.pressure, d.wind_speed, d.wind_u, d.wind_v
+      ]);
+
+      const numFeatures = 7; // 7 Fitur utama termasuk kecepatan_angin dan vektor angin
+      const timeSteps = 5;       // Lookback 5 langkah
+      const forecastSteps = 12;  // Prediksi 12 langkah ke depan
+
+      // Normalisasi Min-Max dengan Proteksi Division by Zero
+      const mins = Array(numFeatures).fill(Infinity);
+      const maxs = Array(numFeatures).fill(-Infinity);
+
+      for (let i = 0; i < features.length; i++) {
+        for (let j = 0; j < numFeatures; j++) {
+          if (features[i][j] < mins[j]) mins[j] = features[i][j];
+          if (features[i][j] > maxs[j]) maxs[j] = features[i][j];
+        }
+      }
+
+      const scaledFeatures = features.map(row =>
+        row.map((val, col) => {
+          const range = maxs[col] - mins[col];
+          return range === 0 ? 0 : (val - mins[col]) / range;
+        })
+      );
+
+      // Form Dataset Training Sekuensial
+      const X_train = [], Y_train = [];
+      for (let i = 0; i <= scaledFeatures.length - timeSteps - 1; i++) {
+        X_train.push(scaledFeatures.slice(i, i + timeSteps));
+        Y_train.push(scaledFeatures[i + timeSteps]);
+      }
+
+      const xs = tf.tensor3d(X_train);
+      const ys = tf.tensor2d(Y_train);
+
+      // Model LSTM Ringan
+      const model = tf.sequential();
+      model.add(tf.layers.lstm({
+        units: 16,
+        inputShape: [timeSteps, numFeatures],
+        returnSequences: false
+      }));
+      model.add(tf.layers.dense({ units: numFeatures }));
+
+      model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' });
+
+      statusText.innerText = "Melatih Model LSTM...";
+      const epochs = 40;
+
+      await model.fit(xs, ys, {
+        epochs: epochs,
+        batchSize: 8,
+        callbacks: {
+          onEpochEnd: (epoch, logs) => {
+            const pct = Math.round(((epoch + 1) / epochs) * 80) + 10;
+            progressFill.style.width = pct + "%";
+            statusText.innerText = `Training Epoch ${epoch + 1}/${epochs} - Loss: ${(logs.loss || 0).toFixed(6)}`;
+          }
+        }
+      });
+
+      // HITUNG PREDIKSI IN-SAMPLE UNTUK EVALUASI AKURASI
+      statusText.innerText = "Mengevaluasi Metrik Akurasi...";
+      const trainPredTensor = model.predict(xs);
+      const trainPredArray = await trainPredTensor.array();
+      trainPredTensor.dispose();
+
+      // Denormalisasi Data In-Sample Actual & Predicted
+      const yTrueOriginal = Y_train.map(row => {
+        const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
+        let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
+        if (deg < 0) deg += 360;
+        return [real[0], real[1], real[2], real[3], deg, Math.max(0, real[4])];
+      });
+
+      const yPredOriginal = trainPredArray.map(row => {
+        const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
+        let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
+        if (deg < 0) deg += 360;
+        return [real[0], real[1], real[2], real[3], deg, Math.max(0, real[4])];
+      });
+
+      // Hitung Metrik per Parameter (Water, Temp, Humidity, Pressure, Wind Dir, Wind Speed)
+      const paramNames = [
+        "Tinggi Air Laut (m)",
+        "Suhu Udara (°C)",
+        "Kelembaban (%)",
+        "Tekanan (hPa)",
+        "Arah Angin (°)",
+        "Kecepatan Angin (m/s)"
+      ];
+      const metricsResults = [];
+
+      for (let p = 0; p < 6; p++) {
+        const actuals = yTrueOriginal.map(row => row[p]);
+        const preds = yPredOriginal.map(row => row[p]);
+        const m = calculateMetrics(actuals, preds);
+        metricsResults.push({ name: paramNames[p], ...m });
+      }
+
+      statusText.innerText = "Menghitung Prediksi Masa Depan...";
+
+      let currentSeq = scaledFeatures.slice(-timeSteps);
+      let scaledPreds = [];
+
+      for (let s = 0; s < forecastSteps; s++) {
+        const inputTensor = tf.tensor3d([currentSeq]);
+        const predTensor = model.predict(inputTensor);
+        const predArray = (await predTensor.array())[0];
+
+        scaledPreds.push(predArray);
+        currentSeq.shift();
+        currentSeq.push(predArray);
+
+        inputTensor.dispose();
+        predTensor.dispose();
+      }
+
+      // Denormalisasi & Rekonstruksi Derajat & Kecepatan Angin
+      const finalPredictions = 
         }
       }
     });
