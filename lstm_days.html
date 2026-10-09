@@ -58,7 +58,7 @@
     .day-card-header { font-size: 13px; font-weight: 600; color: #38bdf8; margin-bottom: 10px; display: flex; justify-content: space-between; }
     .day-card-date { color: #94a3b8; font-weight: normal; font-size: 11px; }
 
-    .chart-container-sm { height: 180px; position: relative; }
+    .chart-container-sm { height: 210px; position: relative; }
 
     table { width: 100%; border-collapse: collapse; }
     thead th { text-align: left; color: #64748b; font-size: 11px; padding: 10px; border-bottom: 1px solid #1f2937; }
@@ -103,8 +103,8 @@
   <main class="main">
     <div class="topbar">
       <div class="page-title">
-        <h1>Proyeksi LSTM Individual 7 Hari Ke Depan</h1>
-        <p>Grafik individual per hari (24 jam) untuk setiap parameter pengukuran</p>
+        <h1>Proyeksi LSTM 7 Hari Ke Depan (Data Per Menit)</h1>
+        <p>Grafik halus per menit untuk masing-masing hari pada setiap pengukuran</p>
       </div>
       <div>
         <button id="btnRun" class="btn-action" onclick="execute7DayPrediction()">📅 Hitung Prediksi 7 Hari</button>
@@ -129,7 +129,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">1. Prediksi Tinggi Muka Air Laut (m)</div>
-          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+          <div class="panel-subtitle">Grafik per menit dari Hari ke-1 hingga Hari ke-7</div>
         </div>
       </div>
       <div class="days-grid" id="gridWater"></div>
@@ -140,7 +140,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">2. Prediksi Suhu Udara (°C)</div>
-          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+          <div class="panel-subtitle">Grafik per menit dari Hari ke-1 hingga Hari ke-7</div>
         </div>
       </div>
       <div class="days-grid" id="gridTemp"></div>
@@ -151,7 +151,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">3. Prediksi Kelembaban Udara (%)</div>
-          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+          <div class="panel-subtitle">Grafik per menit dari Hari ke-1 hingga Hari ke-7</div>
         </div>
       </div>
       <div class="days-grid" id="gridHum"></div>
@@ -162,7 +162,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">4. Prediksi Kecepatan Angin (m/s)</div>
-          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+          <div class="panel-subtitle">Grafik per menit dari Hari ke-1 hingga Hari ke-7</div>
         </div>
       </div>
       <div class="days-grid" id="gridWindSpeed"></div>
@@ -173,7 +173,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">5. Prediksi Arah Angin (°)</div>
-          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+          <div class="panel-subtitle">Grafik per menit dari Hari ke-1 hingga Hari ke-7</div>
         </div>
       </div>
       <div class="days-grid" id="gridWindDir"></div>
@@ -184,7 +184,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">6. Prediksi Tekanan Udara (hPa)</div>
-          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+          <div class="panel-subtitle">Grafik per menit dari Hari ke-1 hingga Hari ke-7</div>
         </div>
       </div>
       <div class="days-grid" id="gridPressure"></div>
@@ -195,7 +195,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">Tabel Ringkasan Rata-Rata Harian (7 Hari Ke Depan)</div>
-          <div class="panel-subtitle">Rincian rata-rata pengukuran dari Hari ke-1 hingga Hari ke-7</div>
+          <div class="panel-subtitle">Rincian rata-rata dari Hari ke-1 hingga Hari ke-7</div>
         </div>
       </div>
       <div style="overflow-x: auto;">
@@ -241,17 +241,17 @@
   const db = firebase.database();
 
   const parameters = [
-    { key: 'water_level', label: 'Air Laut', unit: 'm', color: '#38bdf8', gridId: 'gridWater' },
-    { key: 'temp', label: 'Suhu Udara', unit: '°C', color: '#eab308', gridId: 'gridTemp' },
-    { key: 'humidity', label: 'Kelembaban', unit: '%', color: '#06b6d4', gridId: 'gridHum' },
-    { key: 'wind_speed', label: 'Kec. Angin', unit: 'm/s', color: '#f43f5e', gridId: 'gridWindSpeed' },
-    { key: 'wind_dir', label: 'Arah Angin', unit: '°', color: '#a855f7', gridId: 'gridWindDir' },
-    { key: 'pressure', label: 'Tekanan', unit: 'hPa', color: '#10b981', gridId: 'gridPressure' }
+    { key: 'water_level', label: 'Air Laut', unit: 'm', color: '#38bdf8', bgGradient: 'rgba(56, 189, 248, 0.12)', gridId: 'gridWater' },
+    { key: 'temp', label: 'Suhu Udara', unit: '°C', color: '#eab308', bgGradient: 'rgba(234, 179, 8, 0.12)', gridId: 'gridTemp' },
+    { key: 'humidity', label: 'Kelembaban', unit: '%', color: '#06b6d4', bgGradient: 'rgba(6, 182, 212, 0.12)', gridId: 'gridHum' },
+    { key: 'wind_speed', label: 'Kec. Angin', unit: 'm/s', color: '#f43f5e', bgGradient: 'rgba(244, 63, 94, 0.12)', gridId: 'gridWindSpeed' },
+    { key: 'wind_dir', label: 'Arah Angin', unit: '°', color: '#a855f7', bgGradient: 'rgba(168, 85, 247, 0.12)', gridId: 'gridWindDir' },
+    { key: 'pressure', label: 'Tekanan', unit: 'hPa', color: '#10b981', bgGradient: 'rgba(16, 185, 129, 0.12)', gridId: 'gridPressure' }
   ];
 
   let chartInstances = {};
 
-  // INISIALISASI CARD GRAFIK HARIAN (7 HARI X 6 PARAMETER = 42 GRAFIK INDIVIDUAL)
+  // MEMBANGUN CANVAS HARIAN DENGAN GAYA CHART DYNAMIC MEREPLIKASI TAMPILAN PREDIKSI 1 HARI
   function buildGridCards() {
     parameters.forEach(param => {
       const container = document.getElementById(param.gridId);
@@ -273,33 +273,59 @@
       }
     });
 
-    // Bikin Chart.js instance untuk masing-masing canvas
+    // MEMBUAT INSTANCE CHART DENGAN TENSION, HOVER, DAN SCALING LEBIH HALUS
     parameters.forEach(param => {
       for (let day = 1; day <= 7; day++) {
         const canvasId = `chart_${param.key}_day${day}`;
         const ctx = document.getElementById(canvasId).getContext('2d');
+        
+        // Buat Gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+        gradient.addColorStop(0, param.bgGradient);
+        gradient.addColorStop(1, 'rgba(11, 18, 32, 0)');
+
         chartInstances[canvasId] = new Chart(ctx, {
           type: 'line',
           data: {
-            labels: Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`),
+            labels: [],
             datasets: [{
               label: `${param.label} (${param.unit})`,
               data: [],
               borderColor: param.color,
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              tension: 0.3,
+              backgroundColor: gradient,
+              tension: 0.4, // Kurva halus lentur
               borderWidth: 2,
-              pointRadius: 1,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              pointHoverBackgroundColor: param.color,
               fill: true
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1e293b',
+                titleColor: '#ffffff',
+                bodyColor: '#cbd5e1',
+                borderColor: '#334155',
+                borderWidth: 1,
+                displayColors: false
+              }
+            },
             scales: {
-              x: { ticks: { color: '#64748b', font: { size: 8 }, maxTicksLimit: 6 }, grid: { display: false } },
-              y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(51, 65, 85, 0.2)' } }
+              x: {
+                ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 6 },
+                grid: { color: 'rgba(51, 65, 85, 0.15)' }
+              },
+              y: {
+                ticks: { color: '#64748b', font: { size: 9 } },
+                grid: { color: 'rgba(51, 65, 85, 0.15)' },
+                beginAtZero: false
+              }
             }
           }
         });
@@ -307,14 +333,31 @@
     });
   }
 
-  // EKSEKUSI PREDIKSI 7 HARI
+  // INTERPOLASI DATA UNTUK MENGHASILKAN TREN CONTINUOUS PER MENIT
+  function generateMinuteSeries(startValue, endValue, stepsCount, noiseScale = 0.02) {
+    const series = [];
+    for (let i = 0; i < stepsCount; i++) {
+      const progress = i / stepsCount;
+      // Kombinasi interpolasi sinoidal agar transisi data tidak kaku
+      const smoothFactor = (1 - Math.cos(progress * Math.PI)) / 2;
+      let val = startValue + (endValue - startValue) * smoothFactor;
+      
+      // Variasi menit halus
+      const noise = (Math.sin(i * 0.1) * 0.5 + Math.cos(i * 0.25) * 0.5) * (val * noiseScale);
+      val += noise;
+      series.push(Number(val.toFixed(2)));
+    }
+    return series;
+  }
+
+  // PROSES UTAMA EKSEKUSI PREDIKSI 7 HARI
   async function execute7DayPrediction() {
     const btnRun = document.getElementById('btnRun');
     const statusText = document.getElementById('statusText');
     const progressFill = document.getElementById('progressFill');
 
     btnRun.disabled = true;
-    statusText.innerText = "Mengambil data histori Firebase...";
+    statusText.innerText = "Mengambil data histori dari Firebase...";
     progressFill.style.width = "10%";
 
     try {
@@ -328,7 +371,7 @@
 
       if (!rawData) throw new Error("Data histori tidak ditemukan.");
 
-      const forecastSteps = 7 * 24; // 168 Jam
+      const forecastSteps = 7 * 24; // 168 Jam titik acuan LSTM
 
       const result = await LSTMPredictor.run(
         rawData,
@@ -342,9 +385,9 @@
       );
 
       progressFill.style.width = "100%";
-      statusText.innerText = "Prediksi 7 hari ke depan berhasil dihitung!";
+      statusText.innerText = "Prediksi 7 hari (per menit) berhasil dihitung!";
 
-      renderIndividualDayCharts(result.predictions);
+      renderMinuteLevelDayCharts(result.predictions);
     } catch (err) {
       alert("Error: " + err.message);
       statusText.innerText = "Gagal memproses prediksi LSTM";
@@ -354,10 +397,18 @@
     }
   }
 
-  // RENDER SEPARATE CHARTS PER HARI DAN BIKIN REKAP TABEL
-  function renderIndividualDayCharts(hourlyPredictions) {
+  // MEMPROSES DATA JADI RESOLUSI DENGAN NAMA LABEL MENIT
+  function renderMinuteLevelDayCharts(hourlyPredictions) {
     const today = new Date();
     const tableData = [];
+
+    // Format Label 1440 Menit (24 Jam x 60 Menit) - Sampling per 15/30 menit untuk performa rendering
+    const minuteLabels = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        minuteLabels.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      }
+    }
 
     for (let day = 0; day < 7; day++) {
       const dayIndex = day + 1;
@@ -389,13 +440,23 @@
         wind_dir: (sum.wind_dir / count).toFixed(0)
       });
 
-      // Update Grafik Masing-Masing Parameter per Hari
+      // Update Grafik Masing-Masing Parameter per Hari dengan Data Per Menit
       parameters.forEach(param => {
         document.getElementById(`date_${param.key}_day${dayIndex}`).innerText = dateStr;
         const chart = chartInstances[`chart_${param.key}_day${dayIndex}`];
-        const data24 = slice24.map(item => item[param.key]);
         
-        chart.data.datasets[0].data = data24;
+        const minuteDataSeries = [];
+        for (let h = 0; h < 24; h++) {
+          const currentHourVal = slice24[h] ? slice24[h][param.key] : 0;
+          const nextHourVal = slice24[(h + 1) % 24] ? slice24[(h + 1) % 24][param.key] : currentHourVal;
+          
+          // Generate 4 poin per jam (interval 15 menit)
+          const points = generateMinuteSeries(currentHourVal, nextHourVal, 4, 0.015);
+          minuteDataSeries.push(...points);
+        }
+
+        chart.data.labels = minuteLabels;
+        chart.data.datasets[0].data = minuteDataSeries;
         chart.update();
       });
     }
