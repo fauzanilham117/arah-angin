@@ -22,12 +22,12 @@
     .app { display: flex; min-height: 100vh; }
 
     /* SIDEBAR */
-    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; overflow-y: auto; }
     .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; padding: 0 8px; }
     .brand-icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 21px; }
     .brand-text h2 { font-size: 16px; color: #ffffff; margin-bottom: 2px; }
     .brand-text p { color: #94a3b8; font-size: 11px; }
-    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; }
+    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; margin-top: 16px; }
     .menu { display: flex; flex-direction: column; gap: 5px; }
     .menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 9px; color: #94a3b8; cursor: pointer; transition: 0.2s; font-size: 13px; text-decoration: none; }
     .menu-item:hover { background: #1e293b; color: #ffffff; }
@@ -40,9 +40,9 @@
     .page-title h1 { font-size: 24px; color: #ffffff; margin-bottom: 4px; }
     .page-title p { font-size: 12px; color: #64748b; }
 
-    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-    .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
+    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 18px; margin-bottom: 24px; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid #1e293b; padding-bottom: 12px; }
+    .panel-title { font-size: 16px; color: #ffffff; font-weight: 600; }
     .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
 
     .btn-action { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
@@ -52,7 +52,13 @@
     .progress-bar-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
     .progress-bar-fill { width: 0%; background: #06b6d4; height: 100%; transition: width 0.3s ease; }
 
-    .chart-container { height: 260px; position: relative; }
+    /* GRID HARI UNTUK GRAFIK INDIVIDUAL */
+    .days-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    .day-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; }
+    .day-card-header { font-size: 13px; font-weight: 600; color: #38bdf8; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .day-card-date { color: #94a3b8; font-weight: normal; font-size: 11px; }
+
+    .chart-container-sm { height: 180px; position: relative; }
 
     table { width: 100%; border-collapse: collapse; }
     thead th { text-align: left; color: #64748b; font-size: 11px; padding: 10px; border-bottom: 1px solid #1f2937; }
@@ -62,6 +68,7 @@
 <body>
 
 <div class="app">
+  <!-- SIDEBAR NAVIGATION -->
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-icon">🌊</div>
@@ -71,15 +78,19 @@
       </div>
     </div>
 
-    <div class="menu-title">Menu</div>
+    <div class="menu-title">Menu Utama</div>
     <div class="menu">
       <a href="index.html" class="menu-item">
         <span class="menu-icon">📊</span>
         <span>Dashboard</span>
       </a>
+    </div>
+
+    <div class="menu-title">Prediksi LSTM</div>
+    <div class="menu">
       <a href="lstm.html" class="menu-item">
-        <span class="menu-icon">🤖</span>
-        <span>Prediksi LSTM (H-1)</span>
+        <span class="menu-icon">📈</span>
+        <span>Prediksi 1 Hari</span>
       </a>
       <a href="lstm_7days.html" class="menu-item active">
         <span class="menu-icon">📅</span>
@@ -88,22 +99,24 @@
     </div>
   </aside>
 
+  <!-- MAIN CONTENT -->
   <main class="main">
     <div class="topbar">
       <div class="page-title">
-        <h1>Proyeksi LSTM 7 Hari Ke Depan</h1>
-        <p>Menggunakan seluruh sampel data historis untuk memprediksi tren mingguan setiap pengukuran</p>
+        <h1>Proyeksi LSTM Individual 7 Hari Ke Depan</h1>
+        <p>Grafik individual per hari (24 jam) untuk setiap parameter pengukuran</p>
       </div>
       <div>
         <button id="btnRun" class="btn-action" onclick="execute7DayPrediction()">📅 Hitung Prediksi 7 Hari</button>
       </div>
     </div>
 
+    <!-- PANEL STATUS PELATIHAN -->
     <div class="panel">
-      <div class="panel-header">
+      <div class="panel-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
         <div>
-          <div class="panel-title">Status Pelatihan Seluruh Data Histori</div>
-          <div class="panel-subtitle" id="statusText">Siap mengolah seluruh database Firebase...</div>
+          <div class="panel-title">Status Pelatihan Model LSTM</div>
+          <div class="panel-subtitle" id="statusText">Siap mengolah database Firebase...</div>
         </div>
       </div>
       <div class="progress-bar-bg">
@@ -111,70 +124,79 @@
       </div>
     </div>
 
-    <!-- 1. GRAFIK AIR LAUT -->
+    <!-- SECTION 1: TINGGI MUKA AIR LAUT -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">1. Proyeksi Tinggi Muka Air Laut (m) - 7 Hari Ke Depan</div>
+        <div>
+          <div class="panel-title">1. Prediksi Tinggi Muka Air Laut (m)</div>
+          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+        </div>
       </div>
-      <div class="chart-container">
-        <canvas id="chartWater7"></canvas>
-      </div>
+      <div class="days-grid" id="gridWater"></div>
     </div>
 
-    <!-- 2. GRAFIK SUHU UDARA -->
+    <!-- SECTION 2: SUHU UDARA -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">2. Proyeksi Suhu Udara (°C) - 7 Hari Ke Depan</div>
+        <div>
+          <div class="panel-title">2. Prediksi Suhu Udara (°C)</div>
+          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+        </div>
       </div>
-      <div class="chart-container">
-        <canvas id="chartTemp7"></canvas>
-      </div>
+      <div class="days-grid" id="gridTemp"></div>
     </div>
 
-    <!-- 3. GRAFIK KELEMBABAN UDARA -->
+    <!-- SECTION 3: KELEMBABAN UDARA -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">3. Proyeksi Kelembaban Udara (%) - 7 Hari Ke Depan</div>
+        <div>
+          <div class="panel-title">3. Prediksi Kelembaban Udara (%)</div>
+          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+        </div>
       </div>
-      <div class="chart-container">
-        <canvas id="chartHum7"></canvas>
-      </div>
+      <div class="days-grid" id="gridHum"></div>
     </div>
 
-    <!-- 4. GRAFIK KECEPATAN ANGIN -->
+    <!-- SECTION 4: KECEPATAN ANGIN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">4. Proyeksi Kecepatan Angin (m/s) - 7 Hari Ke Depan</div>
+        <div>
+          <div class="panel-title">4. Prediksi Kecepatan Angin (m/s)</div>
+          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+        </div>
       </div>
-      <div class="chart-container">
-        <canvas id="chartWindSpeed7"></canvas>
-      </div>
+      <div class="days-grid" id="gridWindSpeed"></div>
     </div>
 
-    <!-- 5. GRAFIK ARAH ANGIN -->
+    <!-- SECTION 5: ARAH ANGIN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">5. Proyeksi Arah Angin (°) - 7 Hari Ke Depan</div>
+        <div>
+          <div class="panel-title">5. Prediksi Arah Angin (°)</div>
+          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+        </div>
       </div>
-      <div class="chart-container">
-        <canvas id="chartWindDir7"></canvas>
-      </div>
+      <div class="days-grid" id="gridWindDir"></div>
     </div>
 
-    <!-- 6. GRAFIK TEKANAN UDARA -->
+    <!-- SECTION 6: TEKANAN UDARA -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">6. Proyeksi Tekanan Udara (hPa) - 7 Hari Ke Depan</div>
+        <div>
+          <div class="panel-title">6. Prediksi Tekanan Udara (hPa)</div>
+          <div class="panel-subtitle">Grafik proyeksi 24 jam untuk masing-masing hari dari Hari ke-1 hingga Hari ke-7</div>
+        </div>
       </div>
-      <div class="chart-container">
-        <canvas id="chartPressure7"></canvas>
-      </div>
+      <div class="days-grid" id="gridPressure"></div>
     </div>
 
-    <!-- TABEL REKAP PROYEKSI 7 HARI -->
+    <!-- TABEL RINGKASAN HARIAN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Tabel Ringkasan Prediksi Rata-Rata 7 Hari Ke Depan</div>
+        <div>
+          <div class="panel-title">Tabel Ringkasan Rata-Rata Harian (7 Hari Ke Depan)</div>
+          <div class="panel-subtitle">Rincian rata-rata pengukuran dari Hari ke-1 hingga Hari ke-7</div>
+        </div>
       </div>
       <div style="overflow-x: auto;">
         <table>
@@ -192,7 +214,7 @@
           </thead>
           <tbody id="table7DaysBody">
             <tr>
-              <td colspan="8" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat prediksi 7 hari ke depan.</td>
+              <td colspan="8" style="text-align: center; color: #64748b;">Klik tombol "Hitung Prediksi 7 Hari" untuk menampilkan data.</td>
             </tr>
           </tbody>
         </table>
@@ -202,7 +224,7 @@
 </div>
 
 <script>
-  // KREDENSIAL FIREBASE
+  // CONFIG FIREBASE
   const firebaseConfig = {
     apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
     authDomain: "arah-angin-76f91.firebaseapp.com",
@@ -218,61 +240,81 @@
   }
   const db = firebase.database();
 
-  let charts7 = {};
+  const parameters = [
+    { key: 'water_level', label: 'Air Laut', unit: 'm', color: '#38bdf8', gridId: 'gridWater' },
+    { key: 'temp', label: 'Suhu Udara', unit: '°C', color: '#eab308', gridId: 'gridTemp' },
+    { key: 'humidity', label: 'Kelembaban', unit: '%', color: '#06b6d4', gridId: 'gridHum' },
+    { key: 'wind_speed', label: 'Kec. Angin', unit: 'm/s', color: '#f43f5e', gridId: 'gridWindSpeed' },
+    { key: 'wind_dir', label: 'Arah Angin', unit: '°', color: '#a855f7', gridId: 'gridWindDir' },
+    { key: 'pressure', label: 'Tekanan', unit: 'hPa', color: '#10b981', gridId: 'gridPressure' }
+  ];
 
-  function createSingleChart(canvasId, titleUnit, mainColor) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    return new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          {
-            label: `Seluruh Data Histori (${titleUnit})`,
-            data: [],
-            borderColor: mainColor,
-            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-            tension: 0.2,
-            fill: true
+  let chartInstances = {};
+
+  // INISIALISASI CARD GRAFIK HARIAN (7 HARI X 6 PARAMETER = 42 GRAFIK INDIVIDUAL)
+  function buildGridCards() {
+    parameters.forEach(param => {
+      const container = document.getElementById(param.gridId);
+      container.innerHTML = '';
+
+      for (let day = 1; day <= 7; day++) {
+        const cardId = `chart_${param.key}_day${day}`;
+        container.innerHTML += `
+          <div class="day-card">
+            <div class="day-card-header">
+              <span>Hari ke-${day}</span>
+              <span class="day-card-date" id="date_${param.key}_day${day}">-</span>
+            </div>
+            <div class="chart-container-sm">
+              <canvas id="${cardId}"></canvas>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    // Bikin Chart.js instance untuk masing-masing canvas
+    parameters.forEach(param => {
+      for (let day = 1; day <= 7; day++) {
+        const canvasId = `chart_${param.key}_day${day}`;
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        chartInstances[canvasId] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`),
+            datasets: [{
+              label: `${param.label} (${param.unit})`,
+              data: [],
+              borderColor: param.color,
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 1,
+              fill: true
+            }]
           },
-          {
-            label: `Prediksi 7 Hari (${titleUnit})`,
-            data: [],
-            borderColor: '#ef4444',
-            borderDash: [5, 5],
-            tension: 0.2,
-            pointRadius: 4
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: '#64748b', font: { size: 8 }, maxTicksLimit: 6 }, grid: { display: false } },
+              y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(51, 65, 85, 0.2)' } }
+            }
           }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#94a3b8' } } },
-        scales: {
-          x: { ticks: { color: '#64748b' } },
-          y: { ticks: { color: '#64748b' }, beginAtZero: false }
-        }
+        });
       }
     });
   }
 
-  function initCharts() {
-    charts7.water = createSingleChart('chartWater7', 'm', '#38bdf8');
-    charts7.temp = createSingleChart('chartTemp7', '°C', '#eab308');
-    charts7.hum = createSingleChart('chartHum7', '%', '#06b6d4');
-    charts7.windSpeed = createSingleChart('chartWindSpeed7', 'm/s', '#f43f5e');
-    charts7.windDir = createSingleChart('chartWindDir7', '°', '#a855f7');
-    charts7.pressure = createSingleChart('chartPressure7', 'hPa', '#10b981');
-  }
-
+  // EKSEKUSI PREDIKSI 7 HARI
   async function execute7DayPrediction() {
     const btnRun = document.getElementById('btnRun');
     const statusText = document.getElementById('statusText');
     const progressFill = document.getElementById('progressFill');
 
     btnRun.disabled = true;
-    statusText.innerText = "Mengambil seluruh database histori Firebase...";
+    statusText.innerText = "Mengambil data histori Firebase...";
     progressFill.style.width = "10%";
 
     try {
@@ -286,47 +328,47 @@
 
       if (!rawData) throw new Error("Data histori tidak ditemukan.");
 
-      // Langkah 1: Minta LSTMPredictor memproses SELURUH sampel data histori
-      // Langkah iterasi sekuensial disesuaikan untuk 7 hari ke depan (7 * 24 = 168 langkah jam)
-      const forecastSteps7Days = 7 * 24; 
+      const forecastSteps = 7 * 24; // 168 Jam
 
       const result = await LSTMPredictor.run(
         rawData,
-        10, // lookback window lebih besar untuk data panjang
-        forecastSteps7Days,
+        10,
+        forecastSteps,
         (epoch, total, loss) => {
           const pct = Math.round((epoch / total) * 80) + 10;
           progressFill.style.width = pct + "%";
-          statusText.innerText = `Training Seluruh Data: Epoch ${epoch}/${total} - Loss: ${loss.toFixed(6)}`;
+          statusText.innerText = `Training Model LSTM: Epoch ${epoch}/${total} - Loss: ${loss.toFixed(6)}`;
         }
       );
 
-      // Langkah 2: Agregasi Hasil Prediksi Menjadi 7 Hari
-      const dailyPredictions = processDailyAggregates(result.predictions);
-
       progressFill.style.width = "100%";
-      statusText.innerText = "Prediksi 7 Hari Ke Depan Berhasil Dihitung!";
+      statusText.innerText = "Prediksi 7 hari ke depan berhasil dihitung!";
 
-      updateUI(result.historical, dailyPredictions);
+      renderIndividualDayCharts(result.predictions);
     } catch (err) {
       alert("Error: " + err.message);
-      statusText.innerText = "Gagal memproses prediksi";
+      statusText.innerText = "Gagal memproses prediksi LSTM";
       progressFill.style.width = "0%";
     } finally {
       btnRun.disabled = false;
     }
   }
 
-  // Mengagregasikan hasil sekuensial jam menjadi rata-rata harian (7 Hari)
-  function processDailyAggregates(hourlyPredictions) {
-    const daily = [];
+  // RENDER SEPARATE CHARTS PER HARI DAN BIKIN REKAP TABEL
+  function renderIndividualDayCharts(hourlyPredictions) {
     const today = new Date();
+    const tableData = [];
 
     for (let day = 0; day < 7; day++) {
-      const slice = hourlyPredictions.slice(day * 24, (day + 1) * 24);
-      if (slice.length === 0) break;
+      const dayIndex = day + 1;
+      const slice24 = hourlyPredictions.slice(day * 24, (day + 1) * 24);
 
-      const avg = slice.reduce((acc, curr) => ({
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + dayIndex);
+      const dateStr = targetDate.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+
+      // Hitung Rata-Rata Harian
+      const sum = slice24.reduce((acc, curr) => ({
         water_level: acc.water_level + curr.water_level,
         temp: acc.temp + curr.temp,
         humidity: acc.humidity + curr.humidity,
@@ -335,70 +377,49 @@
         wind_dir: acc.wind_dir + curr.wind_dir
       }), { water_level: 0, temp: 0, humidity: 0, pressure: 0, wind_speed: 0, wind_dir: 0 });
 
-      const count = slice.length;
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() + day + 1);
+      const count = slice24.length || 1;
+      tableData.push({
+        dayName: `Hari ke-${dayIndex}`,
+        dateStr: dateStr,
+        water_level: (sum.water_level / count).toFixed(2),
+        temp: (sum.temp / count).toFixed(1),
+        humidity: (sum.humidity / count).toFixed(1),
+        pressure: (sum.pressure / count).toFixed(1),
+        wind_speed: (sum.wind_speed / count).toFixed(1),
+        wind_dir: (sum.wind_dir / count).toFixed(0)
+      });
 
-      daily.push({
-        dayName: `Hari ke-${day + 1}`,
-        dateStr: targetDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }),
-        water_level: Number((avg.water_level / count).toFixed(2)),
-        temp: Number((avg.temp / count).toFixed(1)),
-        humidity: Number((avg.humidity / count).toFixed(1)),
-        pressure: Number((avg.pressure / count).toFixed(1)),
-        wind_speed: Number((avg.wind_speed / count).toFixed(1)),
-        wind_dir: Number((avg.wind_dir / count).toFixed(0))
+      // Update Grafik Masing-Masing Parameter per Hari
+      parameters.forEach(param => {
+        document.getElementById(`date_${param.key}_day${dayIndex}`).innerText = dateStr;
+        const chart = chartInstances[`chart_${param.key}_day${dayIndex}`];
+        const data24 = slice24.map(item => item[param.key]);
+        
+        chart.data.datasets[0].data = data24;
+        chart.update();
       });
     }
 
-    return daily;
-  }
-
-  function updateUI(historicalData, dailyPredictions) {
-    const histLabels = historicalData.map(d => d.label);
-    const futureLabels = dailyPredictions.map(d => d.dateStr);
-    const allLabels = [...histLabels, ...futureLabels];
-
-    function updateChart7(chartInstance, histDataArr, futureDataArr) {
-      chartInstance.data.labels = allLabels;
-      chartInstance.data.datasets[0].data = [...histDataArr, ...Array(dailyPredictions.length).fill(null)];
-      
-      // Menghubungkan titik terakhir histori ke titik awal prediksi
-      const pad = Array(histDataArr.length - 1).fill(null);
-      const lastHistVal = histDataArr[histDataArr.length - 1];
-      chartInstance.data.datasets[1].data = [...pad, lastHistVal, ...futureDataArr];
-      
-      chartInstance.update();
-    }
-
-    // Render Grafik Masing-Masing
-    updateChart7(charts7.water, historicalData.map(d => d.water_level), dailyPredictions.map(d => d.water_level));
-    updateChart7(charts7.temp, historicalData.map(d => d.temp), dailyPredictions.map(d => d.temp));
-    updateChart7(charts7.hum, historicalData.map(d => d.humidity), dailyPredictions.map(d => d.humidity));
-    updateChart7(charts7.windSpeed, historicalData.map(d => d.wind_speed), dailyPredictions.map(d => d.wind_speed));
-    updateChart7(charts7.windDir, historicalData.map(d => d.wind_dir), dailyPredictions.map(d => d.wind_dir));
-    updateChart7(charts7.pressure, historicalData.map(d => d.pressure), dailyPredictions.map(d => d.pressure));
-
-    // Render Tabel Rekap 7 Hari
+    // Update Tabel Rekap
     const tableBody = document.getElementById('table7DaysBody');
     tableBody.innerHTML = '';
-    dailyPredictions.forEach(d => {
+    tableData.forEach(d => {
       tableBody.innerHTML += `
         <tr>
           <td style="font-weight: 600; color: #ffffff;">${d.dayName}</td>
-          <td style="color: #94a3b8;">${d.dateStr}</td>
-          <td style="color: #38bdf8; font-weight: bold;">${d.water_level.toFixed(2)}</td>
-          <td>${d.temp.toFixed(1)}</td>
-          <td>${d.humidity.toFixed(1)}</td>
-          <td>${d.pressure.toFixed(1)}</td>
-          <td style="color: #f43f5e; font-weight: bold;">${d.wind_speed.toFixed(1)}</td>
+          <td style="color: #38bdf8;">${d.dateStr}</td>
+          <td style="color: #38bdf8; font-weight: bold;">${d.water_level}</td>
+          <td>${d.temp}</td>
+          <td>${d.humidity}</td>
+          <td>${d.pressure}</td>
+          <td style="color: #f43f5e; font-weight: bold;">${d.wind_speed}</td>
           <td style="color: #a855f7;">${d.wind_dir}°</td>
         </tr>
       `;
     });
   }
 
-  window.onload = initCharts;
+  window.onload = buildGridCards;
 </script>
 </body>
 </html>
