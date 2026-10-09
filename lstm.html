@@ -401,4 +401,71 @@
       document.getElementById('predWindDir').innerText = predictions[0].wind_dir.toFixed(0) + "°";
     }
 
-    // 2
+    // 2. Update Tabel Metrik Evaluasi
+    if (metrics && metrics.length > 0) {
+      const metricsBody = document.getElementById('metricsTableBody');
+      metricsBody.innerHTML = '';
+      metrics.forEach(m => {
+        metricsBody.innerHTML += `
+          <tr>
+            <td style="font-weight: 600; color: #ffffff;">${m.name}</td>
+            <td style="color: #38bdf8; font-weight: bold;">${m.rmse.toFixed(4)}</td>
+            <td style="color: #34d399;">${m.mae.toFixed(4)}</td>
+            <td style="color: #facc15;">${m.r.toFixed(4)}</td>
+            <td style="color: #a855f7; font-weight: bold;">${m.r2.toFixed(4)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // 3. Persiapan Sumbu X Menggunakan Seluruh Label Histori
+    const histLabels = historical.map(d => d.label);
+    const predLabels = predictions.map((_, idx) => `P+${idx + 1}`);
+    const allLabels = [...histLabels, ...predLabels];
+
+    const padNulls = Array(lookback).fill(null);
+    const predWaterHist = [...padNulls, ...historicalPredictions.map(p => p[0])];
+    const predTempHist = [...padNulls, ...historicalPredictions.map(p => p[1])];
+    const predHumHist = [...padNulls, ...historicalPredictions.map(p => p[2])];
+    const predPressHist = [...padNulls, ...historicalPredictions.map(p => p[3])];
+    const predWindSpeedHist = [...padNulls, ...historicalPredictions.map(p => p[4])];
+    const predWindDirHist = [...padNulls, ...historicalPredictions.map(p => p[5])];
+
+    // Helper untuk Memperbarui Data Masing-masing Grafik Terpisah
+    function updateChartData(chartInstance, actualDataArr, histPredArr, futurePredArr) {
+      chartInstance.data.labels = allLabels;
+      chartInstance.data.datasets[0].data = [...actualDataArr, ...Array(predictions.length).fill(null)];
+      chartInstance.data.datasets[1].data = [...histPredArr, ...futurePredArr];
+      chartInstance.update();
+    }
+
+    // Update 6 Grafik Secara Mandiri
+    updateChartData(charts.water, historical.map(d => d.water_level), predWaterHist, predictions.map(p => p.water_level));
+    updateChartData(charts.temp, historical.map(d => d.temp), predTempHist, predictions.map(p => p.temp));
+    updateChartData(charts.hum, historical.map(d => d.humidity), predHumHist, predictions.map(p => p.humidity));
+    updateChartData(charts.windSpeed, historical.map(d => d.wind_speed), predWindSpeedHist, predictions.map(p => p.wind_speed));
+    updateChartData(charts.windDir, historical.map(d => d.wind_dir), predWindDirHist, predictions.map(p => p.wind_dir));
+    updateChartData(charts.pressure, historical.map(d => d.pressure), predPressHist, predictions.map(p => p.pressure));
+
+    // 4. Update Tabel Prediksi Masa Depan
+    const tableBody = document.getElementById('predictionTableBody');
+    tableBody.innerHTML = '';
+    predictions.forEach((p, idx) => {
+      tableBody.innerHTML += `
+        <tr>
+          <td>Langkah +${idx + 1}</td>
+          <td style="color: #38bdf8; font-weight: bold;">${p.water_level.toFixed(2)}</td>
+          <td>${p.temp.toFixed(1)}</td>
+          <td>${p.humidity.toFixed(1)}</td>
+          <td>${p.pressure.toFixed(1)}</td>
+          <td style="color: #f43f5e; font-weight: bold;">${p.wind_speed.toFixed(1)}</td>
+          <td style="color: #a855f7;">${p.wind_dir.toFixed(0)}°</td>
+        </tr>
+      `;
+    });
+  }
+
+  window.onload = initCharts;
+</script>
+</body>
+</html>
