@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prediksi LSTM - Monitoring Pesisir (Grafik Terpisah)</title>
+  <title>Prediksi LSTM - Monitoring Pesisir (Seluruh Data Histori)</title>
 
   <!-- FIREBASE JS SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -24,12 +24,12 @@
     .app { display: flex; min-height: 100vh; }
 
     /* SIDEBAR */
-    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; overflow-y: auto; }
     .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; padding: 0 8px; }
     .brand-icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 21px; }
     .brand-text h2 { font-size: 16px; color: #ffffff; margin-bottom: 2px; }
     .brand-text p { color: #94a3b8; font-size: 11px; }
-    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; }
+    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; margin-top: 16px; }
     .menu { display: flex; flex-direction: column; gap: 5px; }
     .menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 9px; color: #94a3b8; cursor: pointer; transition: 0.2s; font-size: 13px; text-decoration: none; }
     .menu-item:hover { background: #1e293b; color: #ffffff; }
@@ -81,15 +81,23 @@
       </div>
     </div>
 
-    <div class="menu-title">Menu</div>
+    <div class="menu-title">Menu Utama</div>
     <div class="menu">
       <a href="index.html" class="menu-item">
         <span class="menu-icon">📊</span>
         <span>Dashboard</span>
       </a>
+    </div>
+
+    <div class="menu-title">Prediksi LSTM</div>
+    <div class="menu">
       <a href="lstm.html" class="menu-item active">
-        <span class="menu-icon">🤖</span>
-        <span>Prediksi LSTM</span>
+        <span class="menu-icon">📈</span>
+        <span>Prediksi 1 Hari</span>
+      </a>
+      <a href="lstm_7days.html" class="menu-item">
+        <span class="menu-icon">📅</span>
+        <span>Prediksi 7 Hari Kedepan</span>
       </a>
     </div>
   </aside>
@@ -97,8 +105,8 @@
   <main class="main">
     <div class="topbar">
       <div class="page-title">
-        <h1>Prediksi Model LSTM Ringan</h1>
-        <p>Grafik terpisah untuk masing-masing parameter pengukuran (Aktual H-1 vs Prediksi)</p>
+        <h1>Prediksi Model LSTM (Seluruh Data Histori)</h1>
+        <p>Pengolahan seluruh sampel data historis database tanpa pembatasan 24 jam</p>
       </div>
       <div>
         <button id="btnRun" class="btn-action" onclick="executeLSTMPrediction()">⚡ Jalankan Prediksi LSTM</button>
@@ -109,7 +117,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">Status Model Training</div>
-          <div class="panel-subtitle" id="statusText">Siap memproses data dari Firebase...</div>
+          <div class="panel-subtitle" id="statusText">Siap memproses seluruh data dari Firebase...</div>
         </div>
       </div>
       <div class="progress-bar-bg">
@@ -145,8 +153,8 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi H-1)</div>
-          <div class="panel-subtitle">Evaluasi dihitung dari perbandingan sekuensial data aktual H-1 vs prediksi</div>
+          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi Seluruh Sampel)</div>
+          <div class="panel-subtitle">Evaluasi dihitung dari perbandingan sekuensial seluruh data aktual vs prediksi</div>
         </div>
       </div>
       <div style="overflow-x: auto;">
@@ -286,29 +294,42 @@
         labels: [],
         datasets: [
           { 
-            label: `Aktual H-1 (${titleUnit})`, 
+            label: `Aktual Histori (${titleUnit})`, 
             data: [], 
             borderColor: mainColor, 
             backgroundColor: 'rgba(59, 130, 246, 0.08)', 
-            tension: 0.2, 
+            tension: 0.35, 
+            pointRadius: 1,
             fill: true 
           },
           { 
-            label: `Prediksi (${titleUnit})`, 
+            label: `Prediksi LSTM (${titleUnit})`, 
             data: [], 
             borderColor: '#ef4444', 
             borderDash: [5, 5], 
-            tension: 0.2 
+            tension: 0.35,
+            pointRadius: 2
           }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: { 
+          legend: { labels: { color: '#94a3b8' } },
+          tooltip: { mode: 'index', intersect: false }
+        },
         scales: { 
-          x: { ticks: { color: '#64748b' } }, 
-          y: { ticks: { color: '#64748b' }, beginAtZero: false } // Auto-zoom Y-Axis
+          x: { 
+            ticks: { color: '#64748b', maxTicksLimit: 12, font: { size: 9 } },
+            grid: { color: 'rgba(51, 65, 85, 0.25)' }
+          }, 
+          y: { 
+            ticks: { color: '#64748b', font: { size: 9 } },
+            grid: { color: 'rgba(51, 65, 85, 0.25)' },
+            beginAtZero: false 
+          }
         }
       }
     });
@@ -329,7 +350,7 @@
     const progressFill = document.getElementById('progressFill');
 
     btnRun.disabled = true;
-    statusText.innerText = "Mengambil data dari Firebase...";
+    statusText.innerText = "Mengambil seluruh data histori dari Firebase...";
     progressFill.style.width = "10%";
 
     try {
@@ -343,20 +364,20 @@
 
       if (!rawData) throw new Error("Data sensor tidak ditemukan di database.");
 
-      // Panggil LSTMPredictor dari lstm.js
+      // Panggil LSTMPredictor dari lstm.js dengan seluruh sampel data histori
       const result = await LSTMPredictor.run(
         rawData,
-        5,  // lookback
-        12, // forecastSteps
+        10, // lookback window disesuaikan untuk run beruntun data panjang
+        24, // forecastSteps
         (epoch, total, loss) => {
           const pct = Math.round((epoch / total) * 80) + 10;
           progressFill.style.width = pct + "%";
-          statusText.innerText = `Training Epoch ${epoch}/${total} - Loss: ${loss.toFixed(6)}`;
+          statusText.innerText = `Training Seluruh Data: Epoch ${epoch}/${total} - Loss: ${loss.toFixed(6)}`;
         }
       );
 
       progressFill.style.width = "100%";
-      statusText.innerText = "Prediksi Selesai! Model memproses data H-1.";
+      statusText.innerText = "Prediksi Selesai! Model memproses seluruh sampel histori.";
 
       updateUI(result);
     } catch (err) {
@@ -380,71 +401,4 @@
       document.getElementById('predWindDir').innerText = predictions[0].wind_dir.toFixed(0) + "°";
     }
 
-    // 2. Update Tabel Metrik Evaluasi
-    if (metrics && metrics.length > 0) {
-      const metricsBody = document.getElementById('metricsTableBody');
-      metricsBody.innerHTML = '';
-      metrics.forEach(m => {
-        metricsBody.innerHTML += `
-          <tr>
-            <td style="font-weight: 600; color: #ffffff;">${m.name}</td>
-            <td style="color: #38bdf8; font-weight: bold;">${m.rmse.toFixed(4)}</td>
-            <td style="color: #34d399;">${m.mae.toFixed(4)}</td>
-            <td style="color: #facc15;">${m.r.toFixed(4)}</td>
-            <td style="color: #a855f7; font-weight: bold;">${m.r2.toFixed(4)}</td>
-          </tr>
-        `;
-      });
-    }
-
-    // 3. Persiapan Sumbu X dan Padding Data
-    const histLabels = historical.map(d => d.label);
-    const predLabels = predictions.map((_, idx) => `P+${idx + 1}`);
-    const allLabels = [...histLabels, ...predLabels];
-
-    const padNulls = Array(lookback).fill(null);
-    const predWaterHist = [...padNulls, ...historicalPredictions.map(p => p[0])];
-    const predTempHist = [...padNulls, ...historicalPredictions.map(p => p[1])];
-    const predHumHist = [...padNulls, ...historicalPredictions.map(p => p[2])];
-    const predPressHist = [...padNulls, ...historicalPredictions.map(p => p[3])];
-    const predWindSpeedHist = [...padNulls, ...historicalPredictions.map(p => p[4])];
-    const predWindDirHist = [...padNulls, ...historicalPredictions.map(p => p[5])];
-
-    // Helper untuk Memperbarui Data Masing-masing Grafik Terpisah
-    function updateChartData(chartInstance, actualDataArr, histPredArr, futurePredArr) {
-      chartInstance.data.labels = allLabels;
-      chartInstance.data.datasets[0].data = [...actualDataArr, ...Array(predictions.length).fill(null)];
-      chartInstance.data.datasets[1].data = [...histPredArr, ...futurePredArr];
-      chartInstance.update();
-    }
-
-    // Update 6 Grafik Secara Mandiri
-    updateChartData(charts.water, historical.map(d => d.water_level), predWaterHist, predictions.map(p => p.water_level));
-    updateChartData(charts.temp, historical.map(d => d.temp), predTempHist, predictions.map(p => p.temp));
-    updateChartData(charts.hum, historical.map(d => d.humidity), predHumHist, predictions.map(p => p.humidity));
-    updateChartData(charts.windSpeed, historical.map(d => d.wind_speed), predWindSpeedHist, predictions.map(p => p.wind_speed));
-    updateChartData(charts.windDir, historical.map(d => d.wind_dir), predWindDirHist, predictions.map(p => p.wind_dir));
-    updateChartData(charts.pressure, historical.map(d => d.pressure), predPressHist, predictions.map(p => p.pressure));
-
-    // 4. Update Tabel Prediksi Masa Depan
-    const tableBody = document.getElementById('predictionTableBody');
-    tableBody.innerHTML = '';
-    predictions.forEach((p, idx) => {
-      tableBody.innerHTML += `
-        <tr>
-          <td>Langkah +${idx + 1}</td>
-          <td style="color: #38bdf8; font-weight: bold;">${p.water_level.toFixed(2)}</td>
-          <td>${p.temp.toFixed(1)}</td>
-          <td>${p.humidity.toFixed(1)}</td>
-          <td>${p.pressure.toFixed(1)}</td>
-          <td style="color: #f43f5e; font-weight: bold;">${p.wind_speed.toFixed(1)}</td>
-          <td style="color: #a855f7;">${p.wind_dir.toFixed(0)}°</td>
-        </tr>
-      `;
-    });
-  }
-
-  window.onload = initCharts;
-</script>
-</body>
-</html>
+    // 2
