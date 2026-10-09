@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prediksi LSTM - Monitoring Pesisir (Seluruh Data Histori)</title>
+  <title>Prediksi LSTM - Monitoring Pesisir (Warna Kontras)</title>
 
   <!-- FIREBASE JS SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -105,8 +105,8 @@
   <main class="main">
     <div class="topbar">
       <div class="page-title">
-        <h1>Prediksi Model LSTM (Seluruh Data Histori)</h1>
-        <p>Pengolahan seluruh sampel data historis database tanpa pembatasan 24 jam</p>
+        <h1>Prediksi Model LSTM</h1>
+        <p>Perbandingan kurva warna Aktual Histori vs Prediksi LSTM</p>
       </div>
       <div>
         <button id="btnRun" class="btn-action" onclick="executeLSTMPrediction()">⚡ Jalankan Prediksi LSTM</button>
@@ -153,7 +153,7 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi Seluruh Sampel)</div>
+          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi)</div>
           <div class="panel-subtitle">Evaluasi dihitung dari perbandingan sekuensial seluruh data aktual vs prediksi</div>
         </div>
       </div>
@@ -283,10 +283,10 @@
   }
   const db = firebase.database();
 
-  // Objek menyimpan 6 Instance Chart.js Terpisah
   let charts = {};
 
-  function createSingleChart(canvasId, titleUnit, mainColor) {
+  // FUNGSI MEMBUAT CHART DENGAN WARNA PEMBANDING YANG KONTRAS
+  function createSingleChart(canvasId, titleUnit, actualColor, predColor = '#ff3366') {
     const ctx = document.getElementById(canvasId).getContext('2d');
     return new Chart(ctx, {
       type: 'line',
@@ -296,8 +296,9 @@
           { 
             label: `Aktual Histori (${titleUnit})`, 
             data: [], 
-            borderColor: mainColor, 
-            backgroundColor: 'rgba(59, 130, 246, 0.08)', 
+            borderColor: actualColor, 
+            backgroundColor: 'rgba(255, 255, 255, 0.03)', 
+            borderWidth: 2,
             tension: 0.35, 
             pointRadius: 1,
             fill: true 
@@ -305,10 +306,13 @@
           { 
             label: `Prediksi LSTM (${titleUnit})`, 
             data: [], 
-            borderColor: '#ef4444', 
-            borderDash: [5, 5], 
+            borderColor: predColor, // Warna pembanding kontras (Crimson / Pink Merah / Kuning)
+            backgroundColor: 'transparent', 
+            borderWidth: 2,
+            borderDash: [6, 4], // Garis putus-putus untuk membedakan struktur prediksi
             tension: 0.35,
-            pointRadius: 2
+            pointRadius: 2,
+            pointBackgroundColor: predColor
           }
         ]
       },
@@ -317,7 +321,7 @@
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: { 
-          legend: { labels: { color: '#94a3b8' } },
+          legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
           tooltip: { mode: 'index', intersect: false }
         },
         scales: { 
@@ -336,12 +340,13 @@
   }
 
   function initCharts() {
-    charts.water = createSingleChart('chartWater', 'm', '#38bdf8');
-    charts.temp = createSingleChart('chartTemp', '°C', '#eab308');
-    charts.hum = createSingleChart('chartHum', '%', '#06b6d4');
-    charts.windSpeed = createSingleChart('chartWindSpeed', 'm/s', '#f43f5e');
-    charts.windDir = createSingleChart('chartWindDir', '°', '#a855f7');
-    charts.pressure = createSingleChart('chartPressure', 'hPa', '#10b981');
+    // Kombinasi Warna Kontras: Aktual (Terang) vs Prediksi (Crimson / Merah Rose)
+    charts.water = createSingleChart('chartWater', 'm', '#38bdf8', '#ff0055');       // Cyan vs Pink Merah
+    charts.temp = createSingleChart('chartTemp', '°C', '#facc15', '#ef4444');        // Kuning vs Merah
+    charts.hum = createSingleChart('chartHum', '%', '#06b6d4', '#f43f5e');          // Biru Toska vs Rose
+    charts.windSpeed = createSingleChart('chartWindSpeed', 'm/s', '#10b981', '#ff2e93'); // Hijau Emerald vs Neon Magenta
+    charts.windDir = createSingleChart('chartWindDir', '°', '#a855f7', '#ff9900');   // Ungu vs Oranye Bright
+    charts.pressure = createSingleChart('chartPressure', 'hPa', '#6366f1', '#fbbf24'); // Indigo vs Kuning Amber
   }
 
   async function executeLSTMPrediction() {
@@ -364,11 +369,10 @@
 
       if (!rawData) throw new Error("Data sensor tidak ditemukan di database.");
 
-      // Panggil LSTMPredictor dari lstm.js dengan seluruh sampel data histori
       const result = await LSTMPredictor.run(
         rawData,
-        10, // lookback window disesuaikan untuk run beruntun data panjang
-        24, // forecastSteps
+        10, 
+        24, 
         (epoch, total, loss) => {
           const pct = Math.round((epoch / total) * 80) + 10;
           progressFill.style.width = pct + "%";
@@ -392,7 +396,6 @@
   function updateUI(result) {
     const { historical, historicalPredictions, predictions, metrics, lookback } = result;
 
-    // 1. Update Card Nilai Pertama
     if (predictions.length > 0) {
       document.getElementById('predWater').innerText = predictions[0].water_level.toFixed(2) + " m";
       document.getElementById('predTemp').innerText = predictions[0].temp.toFixed(1) + " °C";
@@ -401,7 +404,6 @@
       document.getElementById('predWindDir').innerText = predictions[0].wind_dir.toFixed(0) + "°";
     }
 
-    // 2. Update Tabel Metrik Evaluasi
     if (metrics && metrics.length > 0) {
       const metricsBody = document.getElementById('metricsTableBody');
       metricsBody.innerHTML = '';
@@ -418,7 +420,6 @@
       });
     }
 
-    // 3. Persiapan Sumbu X Menggunakan Seluruh Label Histori
     const histLabels = historical.map(d => d.label);
     const predLabels = predictions.map((_, idx) => `P+${idx + 1}`);
     const allLabels = [...histLabels, ...predLabels];
@@ -431,7 +432,6 @@
     const predWindSpeedHist = [...padNulls, ...historicalPredictions.map(p => p[4])];
     const predWindDirHist = [...padNulls, ...historicalPredictions.map(p => p[5])];
 
-    // Helper untuk Memperbarui Data Masing-masing Grafik Terpisah
     function updateChartData(chartInstance, actualDataArr, histPredArr, futurePredArr) {
       chartInstance.data.labels = allLabels;
       chartInstance.data.datasets[0].data = [...actualDataArr, ...Array(predictions.length).fill(null)];
@@ -439,7 +439,6 @@
       chartInstance.update();
     }
 
-    // Update 6 Grafik Secara Mandiri
     updateChartData(charts.water, historical.map(d => d.water_level), predWaterHist, predictions.map(p => p.water_level));
     updateChartData(charts.temp, historical.map(d => d.temp), predTempHist, predictions.map(p => p.temp));
     updateChartData(charts.hum, historical.map(d => d.humidity), predHumHist, predictions.map(p => p.humidity));
@@ -447,7 +446,6 @@
     updateChartData(charts.windDir, historical.map(d => d.wind_dir), predWindDirHist, predictions.map(p => p.wind_dir));
     updateChartData(charts.pressure, historical.map(d => d.pressure), predPressHist, predictions.map(p => p.pressure));
 
-    // 4. Update Tabel Prediksi Masa Depan
     const tableBody = document.getElementById('predictionTableBody');
     tableBody.innerHTML = '';
     predictions.forEach((p, idx) => {
