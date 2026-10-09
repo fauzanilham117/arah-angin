@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prediksi LSTM - Monitoring Pesisir (79 Data)</title>
+  <title>Prediksi LSTM - Monitoring Pesisir (Evaluasi Data Hari Sebelumnya)</title>
 
   <!-- FIREBASE JS SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -54,7 +54,7 @@
     .progress-bar-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
     .progress-bar-fill { width: 0%; background: #06b6d4; height: 100%; transition: width 0.3s ease; }
 
-    .chart-container { height: 300px; position: relative; }
+    .chart-container { height: 320px; position: relative; }
 
     .cards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
     .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 14px; text-align: center; }
@@ -101,8 +101,8 @@
   <main class="main">
     <div class="topbar">
       <div class="page-title">
-        <h1>Prediksi Model LSTM Ringan</h1>
-        <p>Dioptimalkan untuk dataset terbatas (79 sampel) dengan opsi agregasi otomatis</p>
+        <h1>Prediksi LSTM - Sampel 24 Jam Hari Sebelumnya</h1>
+        <p>Evaluasi data histori 24 jam penuh (kemarin) dan perbandingan terhadap hasil pengukuran aktual</p>
       </div>
       <div class="btn-group">
         <button id="btnRun" class="btn-action" onclick="runLSTMPrediction(false)">⚡ Tampilkan Prediksi</button>
@@ -114,7 +114,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">Status Model Training</div>
-          <div class="panel-subtitle" id="statusText">Siap memproses data histori...</div>
+          <div class="panel-subtitle" id="statusText">Siap memproses data 24 jam hari sebelumnya...</div>
         </div>
       </div>
       <div class="progress-bar-bg">
@@ -122,7 +122,7 @@
       </div>
     </div>
 
-    <!-- CARDS PREDIKSI STEPS PERTAMA -->
+    <!-- CARDS PREDIKSI LANGKAH PERTAMA -->
     <div class="cards-grid">
       <div class="card">
         <div class="card-label">Tinggi Air Laut</div>
@@ -150,8 +150,8 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <div class="panel-title">Evaluasi Performa Model (Metrik Akurasi)</div>
-          <div class="panel-subtitle">Nilai evaluasi dihitung berdasarkan perbandingan data aktual vs prediksi pada data histori</div>
+          <div class="panel-title">Evaluasi Performa Model (Data 24 Jam Kemarin: Aktual vs Prediksi)</div>
+          <div class="panel-subtitle">Metrik akurasi dihitung berdasarkan perbandingan sekuensial data aktual hari kemarin dengan output LSTM</div>
         </div>
       </div>
       <div style="overflow-x: auto;">
@@ -177,7 +177,7 @@
     <!-- GRAFIK TINGGI AIR LAUT -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Proyeksi Tinggi Muka Air Laut (Histori vs Prediksi)</div>
+        <div class="panel-title">Tinggi Muka Air Laut: Pengukuran Aktual (24 Jam Kemarin) vs Prediksi</div>
       </div>
       <div class="chart-container">
         <canvas id="lstmWaterChart"></canvas>
@@ -187,7 +187,7 @@
     <!-- GRAFIK KELEMBABAN & SUHU -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Proyeksi Suhu & Kelembaban Udara</div>
+        <div class="panel-title">Suhu & Kelembaban Udara: Pengukuran Aktual (24 Jam Kemarin) vs Prediksi</div>
       </div>
       <div class="chart-container">
         <canvas id="lstmHumChart"></canvas>
@@ -197,17 +197,17 @@
     <!-- GRAFIK ANGIN & TEKANAN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Proyeksi Kecepatan Angin, Arah Angin & Tekanan Udara</div>
+        <div class="panel-title">Kecepatan Angin & Tekanan Udara: Pengukuran Aktual (24 Jam Kemarin) vs Prediksi</div>
       </div>
       <div class="chart-container">
         <canvas id="lstmWindChart"></canvas>
       </div>
     </div>
 
-    <!-- TABEL OUTPUT -->
+    <!-- TABEL OUTPUT PREDIKSI MASA DEPAN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Detail Hasil Prediksi Langkah Selanjutnya</div>
+        <div class="panel-title">Proyeksi Prediksi Langkah Selanjutnya</div>
       </div>
       <div style="overflow-x: auto; max-height: 400px;">
         <table>
@@ -224,7 +224,7 @@
           </thead>
           <tbody id="predictionTableBody">
             <tr>
-              <td colspan="7" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat prediksi.</td>
+              <td colspan="7" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat proyeksi.</td>
             </tr>
           </tbody>
         </table>
@@ -261,8 +261,8 @@
       data: {
         labels: [],
         datasets: [
-          { label: 'Histori Aktual (m)', data: [], borderColor: '#3b82f6', tension: 0.3 },
-          { label: 'Prediksi LSTM (m)', data: [], borderColor: '#ef4444', borderDash: [5, 5], tension: 0.3 }
+          { label: 'Aktual Kemarin (m)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.3, fill: true },
+          { label: 'Prediksi Model (m)', data: [], borderColor: '#ef4444', borderDash: [5, 5], tension: 0.3 }
         ]
       },
       options: {
@@ -279,8 +279,10 @@
       data: {
         labels: [],
         datasets: [
-          { label: 'Prediksi Kelembaban (%)', data: [], borderColor: '#06b6d4', tension: 0.3 },
-          { label: 'Prediksi Suhu (°C)', data: [], borderColor: '#eab308', tension: 0.3, yAxisID: 'y1' }
+          { label: 'Kelembaban Aktual (%)', data: [], borderColor: '#06b6d4', tension: 0.3 },
+          { label: 'Kelembaban Prediksi (%)', data: [], borderColor: '#06b6d4', borderDash: [4, 4], tension: 0.3 },
+          { label: 'Suhu Aktual (°C)', data: [], borderColor: '#eab308', tension: 0.3, yAxisID: 'y1' },
+          { label: 'Suhu Prediksi (°C)', data: [], borderColor: '#eab308', borderDash: [4, 4], tension: 0.3, yAxisID: 'y1' }
         ]
       },
       options: {
@@ -289,8 +291,8 @@
         plugins: { legend: { labels: { color: '#94a3b8' } } },
         scales: {
           x: { ticks: { color: '#64748b' } },
-          y: { position: 'left', ticks: { color: '#64748b' } },
-          y1: { position: 'right', ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
+          y: { position: 'left', title: { display: true, text: 'Kelembaban (%)', color: '#06b6d4' }, ticks: { color: '#64748b' } },
+          y1: { position: 'right', title: { display: true, text: 'Suhu (°C)', color: '#eab308' }, ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
         }
       }
     });
@@ -301,9 +303,10 @@
       data: {
         labels: [],
         datasets: [
-          { label: 'Prediksi Kec. Angin (m/s)', data: [], borderColor: '#f43f5e', tension: 0.3 },
-          { label: 'Prediksi Arah Angin (°)', data: [], borderColor: '#a855f7', tension: 0.3, yAxisID: 'y1' },
-          { label: 'Prediksi Tekanan (hPa)', data: [], borderColor: '#10b981', tension: 0.3, yAxisID: 'y2' }
+          { label: 'Kec. Angin Aktual (m/s)', data: [], borderColor: '#f43f5e', tension: 0.3 },
+          { label: 'Kec. Angin Prediksi (m/s)', data: [], borderColor: '#f43f5e', borderDash: [4, 4], tension: 0.3 },
+          { label: 'Tekanan Aktual (hPa)', data: [], borderColor: '#10b981', tension: 0.3, yAxisID: 'y1' },
+          { label: 'Tekanan Prediksi (hPa)', data: [], borderColor: '#10b981', borderDash: [4, 4], tension: 0.3, yAxisID: 'y1' }
         ]
       },
       options: {
@@ -313,15 +316,14 @@
         scales: {
           x: { ticks: { color: '#64748b' } },
           y: { position: 'left', title: { display: true, text: 'Kec. Angin (m/s)', color: '#f43f5e' }, ticks: { color: '#64748b' } },
-          y1: { position: 'right', min: 0, max: 360, title: { display: true, text: 'Arah (°)', color: '#a855f7' }, ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } },
-          y2: { position: 'right', display: false, grid: { drawOnChartArea: false } }
+          y1: { position: 'right', title: { display: true, text: 'Tekanan (hPa)', color: '#10b981' }, ticks: { color: '#64748b' }, grid: { drawOnChartArea: false } }
         }
       }
     });
   }
 
-  // BACA HISTORI SECARA KONSISTEN DARI NODE DB YANG SAMA
-  async function fetchHistoricalData() {
+  // LOGIC MEMFILTER SAMPEL DATA 24 JAM HARI SEBELUMNYA (H-1)
+  async function fetchYesterday24HourData() {
     let snapshot = await db.ref('sensor').once('value');
     let dataVal = snapshot.val();
     
@@ -335,12 +337,42 @@
     let rawList = Array.isArray(dataVal) ? dataVal : Object.values(dataVal);
     let cleanDataset = rawList.filter(d => d && typeof d === 'object');
 
-    if (cleanDataset.length < 10) throw new Error("Dataset terlalu sedikit (butuh minimal 10 data histori).");
-    return cleanDataset;
+    // Menentukan Batas Waktu 24 Jam Hari Kemarin (00:00:00 s/d 23:59:59)
+    const now = new Date();
+    const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0).getTime();
+    const yesterdayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59).getTime();
+
+    let filteredYesterday = cleanDataset.filter(item => {
+      let ts = item.timestamp ?? item.time ?? item.waktu ?? null;
+      if (!ts) return false;
+      if (typeof ts === 'string') ts = new Date(ts).getTime();
+      return ts >= yesterdayStart && ts <= yesterdayEnd;
+    });
+
+    // Fallback: Jika data berbasis tanggal belum tersedia, ambil rentang 24 jam s/d 48 jam yang lalu
+    if (filteredYesterday.length < 10) {
+      const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+      const fortyEightHoursAgo = Date.now() - (48 * 60 * 60 * 1000);
+
+      filteredYesterday = cleanDataset.filter(item => {
+        let ts = item.timestamp ?? item.time ?? item.waktu ?? null;
+        if (!ts) return false;
+        if (typeof ts === 'string') ts = new Date(ts).getTime();
+        return ts >= fortyEightHoursAgo && ts < twentyFourHoursAgo;
+      });
+    }
+
+    // Fallback Terakhir: Ambil 79 data sekuensial sebelum data terbaru
+    if (filteredYesterday.length < 10) {
+      filteredYesterday = cleanDataset.slice(-158, -79);
+      if (filteredYesterday.length < 10) filteredYesterday = cleanDataset.slice(-79);
+    }
+
+    return filteredYesterday;
   }
 
   function processRawData(rawData) {
-    return rawData.map(item => {
+    return rawData.map((item, index) => {
       const w = Number(item.water_level ?? item.tinggi_muka_air ?? item.tinggi_air ?? 0) || 0;
       const t = Number(item.temp ?? item.suhu ?? 0) || 0;
       const h = Number(item.humidity ?? item.kelembapan ?? 0) || 0;
@@ -348,15 +380,19 @@
       const ws = Number(item.wind_speed ?? item.kecepatan_angin ?? item.speed ?? 0) || 0;
       const deg = Number(item.wind_dir ?? item.arah_angin ?? item.deg ?? 0) || 0;
 
+      const timeLabel = item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : `H-1 (${index + 1})`;
+
       const rad = (deg * Math.PI) / 180;
       return {
+        label: timeLabel,
         water_level: w,
         temp: t,
         humidity: h,
         pressure: p,
         wind_speed: ws,
         wind_u: Math.sin(rad),
-        wind_v: Math.cos(rad)
+        wind_v: Math.cos(rad),
+        wind_dir: deg
       };
     });
   }
@@ -407,12 +443,12 @@
 
     btnRun.disabled = true;
     btnRetrain.disabled = true;
-    statusText.innerText = "Mengambil data histori dari Firebase...";
+    statusText.innerText = "Mengambil data 24 jam hari kemarin dari Firebase...";
     progressFill.style.width = "10%";
 
     try {
-      const cleanDataset = await fetchHistoricalData();
-      const dataset = processRawData(cleanDataset).slice(-79);
+      const cleanDataset = await fetchYesterday24HourData();
+      const dataset = processRawData(cleanDataset);
 
       const features = dataset.map(d => [
         d.water_level, d.temp, d.humidity, d.pressure, d.wind_speed, d.wind_u, d.wind_v
@@ -452,7 +488,6 @@
       let model;
       let isModelLoaded = false;
 
-      // CEK APAKAH MODEL TERSIMPAN DI LOCALSTORAGE (PENGUNCIAN BOBOT PREDIKSI)
       if (!forceRetrain) {
         try {
           model = await tf.loadLayersModel(MODEL_SAVE_PATH);
@@ -464,12 +499,9 @@
         }
       }
 
-      // PELATIHAN MODEL BARU JIKA DIBUTUHKAN / BELUM ADA MODEL
       if (!isModelLoaded) {
-        statusText.innerText = "Melatih Model LSTM Baru...";
-        
-        // Penetapan Inisialisasi Konsisten (Random Seed)
-        tf.setBackend('cpu'); // Mengunci perhitungan konsisten
+        statusText.innerText = "Melatih Model LSTM pada Data 24 Jam Kemarin...";
+        tf.setBackend('cpu');
         
         model = tf.sequential();
         model.add(tf.layers.lstm({
@@ -486,7 +518,7 @@
         await model.fit(xs, ys, {
           epochs: epochs,
           batchSize: 8,
-          shuffle: false, // Menjaga konsistensi urutan sekuensial
+          shuffle: false,
           callbacks: {
             onEpochEnd: (epoch, logs) => {
               const pct = Math.round(((epoch + 1) / epochs) * 70) + 10;
@@ -496,12 +528,11 @@
           }
         });
 
-        // Simpan Model Terlatih ke LocalStorage
         await model.save(MODEL_SAVE_PATH);
       }
 
-      // EVALUASI AKURASI MODEL
-      statusText.innerText = "Mengevaluasi Metrik Akurasi...";
+      // PREDIKSI & EVALUASI DATA HARI KEMARIN
+      statusText.innerText = "Mengevaluasi Akurasi Terhadap Data Kemarin...";
       const trainPredTensor = model.predict(xs);
       const trainPredArray = await trainPredTensor.array();
       trainPredTensor.dispose();
@@ -530,8 +561,8 @@
         metricsResults.push({ name: paramNames[p], ...m });
       }
 
-      // PREDIKSI MASA DEPAN KONSISTEN
-      statusText.innerText = "Menghitung Prediksi Masa Depan...";
+      // PREDIKSI MASA DEPAN 12 LANGKAH
+      statusText.innerText = "Menghitung Proyeksi Masa Depan...";
       let currentSeq = scaledFeatures.slice(-timeSteps);
       let scaledPreds = [];
 
@@ -548,7 +579,7 @@
         predTensor.dispose();
       }
 
-      const finalPredictions = scaledPreds.map(row => {
+      const futurePredictions = scaledPreds.map(row => {
         const real = row.map((val, col) => val * (maxs[col] - mins[col]) + mins[col]);
         let deg = (Math.atan2(real[5], real[6]) * 180) / Math.PI;
         if (deg < 0) deg += 360;
@@ -567,10 +598,10 @@
 
       progressFill.style.width = "100%";
       statusText.innerText = isModelLoaded ? 
-        `Prediksi Selesai! (Memakai model tersimpan dari LocalStorage)` : 
-        `Pelatihan Selesai! Model tersimpan & prediksi terkunci.`;
+        `Proses Selesai! (Model tersimpan dimuat)` : 
+        `Pelatihan Selesai! Model terkunci pada data 24 jam kemarin.`;
 
-      updateUI(dataset, finalPredictions, metricsResults);
+      updateUI(dataset, yPredOriginal, futurePredictions, metricsResults, timeSteps);
     } catch (err) {
       alert("Terjadi Kesalahan: " + err.message);
       statusText.innerText = "Gagal memproses prediksi";
@@ -581,13 +612,13 @@
     }
   }
 
-  function updateUI(historicalData, predictions, metrics) {
-    if (predictions.length > 0) {
-      document.getElementById('predWater').innerText = predictions[0].water_level.toFixed(2) + " m";
-      document.getElementById('predTemp').innerText = predictions[0].temp.toFixed(1) + " °C";
-      document.getElementById('predHum').innerText = predictions[0].humidity.toFixed(1) + " %";
-      document.getElementById('predWindSpeed').innerText = predictions[0].wind_speed.toFixed(1) + " m/s";
-      document.getElementById('predWindDir').innerText = predictions[0].wind_dir.toFixed(0) + "°";
+  function updateUI(dataset, historicalPreds, futurePreds, metrics, timeSteps) {
+    if (futurePreds.length > 0) {
+      document.getElementById('predWater').innerText = futurePreds[0].water_level.toFixed(2) + " m";
+      document.getElementById('predTemp').innerText = futurePreds[0].temp.toFixed(1) + " °C";
+      document.getElementById('predHum').innerText = futurePreds[0].humidity.toFixed(1) + " %";
+      document.getElementById('predWindSpeed').innerText = futurePreds[0].wind_speed.toFixed(1) + " m/s";
+      document.getElementById('predWindDir').innerText = futurePreds[0].wind_dir.toFixed(0) + "°";
     }
 
     if (metrics && metrics.length > 0) {
@@ -606,34 +637,44 @@
       });
     }
 
-    const histWater = historicalData.map(d => d.water_level);
-    const histLabels = historicalData.map((_, idx) => `D-${historicalData.length - idx}`);
-    const predLabels = predictions.map((_, idx) => `P+${idx + 1}`);
+    const histLabels = dataset.map(d => d.label);
+    const futureLabels = futurePreds.map((_, idx) => `P+${idx + 1}`);
+    const allLabels = [...histLabels, ...futureLabels];
 
-    waterChart.data.labels = [...histLabels, ...predLabels];
-    waterChart.data.datasets[0].data = [...histWater, ...Array(predictions.length).fill(null)];
-    waterChart.data.datasets[1].data = [
-      ...Array(histWater.length - 1).fill(null),
-      histWater[histWater.length - 1],
-      ...predictions.map(p => p.water_level)
-    ];
+    const padNulls = Array(timeSteps).fill(null);
+    const predWaterHist = [...padNulls, ...historicalPreds.map(p => p[0])];
+    const predTempHist = [...padNulls, ...historicalPreds.map(p => p[1])];
+    const predHumHist = [...padNulls, ...historicalPreds.map(p => p[2])];
+    const predPressHist = [...padNulls, ...historicalPreds.map(p => p[3])];
+    const predWindHist = [...padNulls, ...historicalPreds.map(p => p[4])];
+
+    // 1. UPDATE GRAFIK AIR LAUT
+    waterChart.data.labels = allLabels;
+    waterChart.data.datasets[0].data = [...dataset.map(d => d.water_level), ...Array(futurePreds.length).fill(null)];
+    waterChart.data.datasets[1].data = [...predWaterHist, ...futurePreds.map(p => p.water_level)];
     waterChart.update();
 
-    humChart.data.labels = predLabels;
-    humChart.data.datasets[0].data = predictions.map(p => p.humidity);
-    humChart.data.datasets[1].data = predictions.map(p => p.temp);
+    // 2. UPDATE GRAFIK SUHU & KELEMBABAN
+    humChart.data.labels = allLabels;
+    humChart.data.datasets[0].data = [...dataset.map(d => d.humidity), ...Array(futurePreds.length).fill(null)];
+    humChart.data.datasets[1].data = [...predHumHist, ...futurePreds.map(p => p.humidity)];
+    humChart.data.datasets[2].data = [...dataset.map(d => d.temp), ...Array(futurePreds.length).fill(null)];
+    humChart.data.datasets[3].data = [...predTempHist, ...futurePreds.map(p => p.temp)];
     humChart.update();
 
-    windChart.data.labels = predLabels;
-    windChart.data.datasets[0].data = predictions.map(p => p.wind_speed);
-    windChart.data.datasets[1].data = predictions.map(p => p.wind_dir);
-    windChart.data.datasets[2].data = predictions.map(p => p.pressure);
+    // 3. UPDATE GRAFIK KECEPATAN ANGIN & TEKANAN
+    windChart.data.labels = allLabels;
+    windChart.data.datasets[0].data = [...dataset.map(d => d.wind_speed), ...Array(futurePreds.length).fill(null)];
+    windChart.data.datasets[1].data = [...predWindHist, ...futurePreds.map(p => p.wind_speed)];
+    windChart.data.datasets[2].data = [...dataset.map(d => d.pressure), ...Array(futurePreds.length).fill(null)];
+    windChart.data.datasets[3].data = [...predPressHist, ...futurePreds.map(p => p.pressure)];
     windChart.update();
 
+    // UPDATE TABEL PROYEKSI FUTURE
     const tableBody = document.getElementById('predictionTableBody');
     tableBody.innerHTML = '';
 
-    predictions.forEach((p, idx) => {
+    futurePreds.forEach((p, idx) => {
       tableBody.innerHTML += `
         <tr>
           <td>Langkah +${idx + 1}</td>
