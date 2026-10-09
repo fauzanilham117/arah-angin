@@ -1,404 +1,2336 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prediksi LSTM 7 Hari Ke Depan - Monitoring Pesisir</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- FIREBASE JS SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <title>Monitoring Pesisir</title>
 
-  <!-- TENSORFLOW.JS & CHART.JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.2.1/firebase-database-compat.js"></script>
 
-  <!-- MODUL LSTM JS -->
-  <script src="lstm.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0b1220; color: #e5e7eb; min-height: 100vh; }
-    .app { display: flex; min-height: 100vh; }
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
 
-    /* SIDEBAR */
-    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
-    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; padding: 0 8px; }
-    .brand-icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 21px; }
-    .brand-text h2 { font-size: 16px; color: #ffffff; margin-bottom: 2px; }
-    .brand-text p { color: #94a3b8; font-size: 11px; }
-    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; }
-    .menu { display: flex; flex-direction: column; gap: 5px; }
-    .menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 9px; color: #94a3b8; cursor: pointer; transition: 0.2s; font-size: 13px; text-decoration: none; }
-    .menu-item:hover { background: #1e293b; color: #ffffff; }
-    .menu-item.active { background: #1d4ed8; color: #ffffff; }
-    .menu-icon { width: 20px; text-align: center; font-size: 16px; }
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    /* MAIN CONTENT */
-    .main { margin-left: 250px; width: calc(100% - 250px); min-height: 100vh; padding: 25px; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .page-title h1 { font-size: 24px; color: #ffffff; margin-bottom: 4px; }
-    .page-title p { font-size: 12px; color: #64748b; }
+        body {
+            font-family: "Inter", Arial, sans-serif;
+            background: #f4f7fb;
+            color: #172033;
+        }
 
-    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-    .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
-    .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
+        /* ================= SIDEBAR ================= */
 
-    .btn-action { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
-    .btn-action:hover { background: #1d4ed8; }
-    .btn-action:disabled { background: #475569; cursor: not-allowed; }
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100vh;
+            background: #071a33;
+            color: white;
+            padding: 25px 18px;
+            z-index: 1000;
+        }
 
-    .progress-bar-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
-    .progress-bar-fill { width: 0%; background: #06b6d4; height: 100%; transition: width 0.3s ease; }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 10px 30px;
+        }
 
-    .chart-container { height: 260px; position: relative; }
+        .logo-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            background: #1677ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
 
-    table { width: 100%; border-collapse: collapse; }
-    thead th { text-align: left; color: #64748b; font-size: 11px; padding: 10px; border-bottom: 1px solid #1f2937; }
-    tbody td { color: #cbd5e1; font-size: 12px; padding: 10px; border-bottom: 1px solid #172033; }
-  </style>
+        .logo-text h2 {
+            font-size: 17px;
+        }
+
+        .logo-text p {
+            font-size: 11px;
+            color: #9eacc0;
+            margin-top: 3px;
+        }
+
+        .menu-title {
+            font-size: 11px;
+            color: #74859c;
+            margin: 15px 12px 8px;
+            text-transform: uppercase;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 14px;
+            margin-bottom: 5px;
+            border-radius: 9px;
+            color: #aab7c8;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .menu-item:hover,
+        .menu-item.active {
+            background: #12365f;
+            color: white;
+        }
+
+        .menu-icon {
+            width: 22px;
+            text-align: center;
+        }
+
+        .sidebar-bottom {
+            position: absolute;
+            bottom: 25px;
+            left: 20px;
+            right: 20px;
+        }
+
+        .connection {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #9eacc0;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ff4757;
+        }
+
+        .status-dot.connected {
+            background: #2ed573;
+        }
+
+        /* ================= MAIN ================= */
+
+        .main {
+            margin-left: 250px;
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: white;
+            height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 35px;
+            border-bottom: 1px solid #e6ebf2;
+        }
+
+        .page-title h1 {
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .page-title p {
+            font-size: 12px;
+            color: #7d8798;
+            margin-top: 4px;
+        }
+
+        .top-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .content {
+            padding: 30px 35px;
+        }
+
+        /* ================= SENSOR CARDS ================= */
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e7ecf2;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(22, 34, 51, 0.03);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .card-label {
+            color: #788499;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .card-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: #edf5ff;
+            color: #1677ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #162238;
+        }
+
+        .card-unit {
+            font-size: 13px;
+            color: #7c8798;
+            margin-left: 4px;
+        }
+
+        .card-footer {
+            margin-top: 9px;
+            font-size: 11px;
+            color: #8c97a7;
+        }
+
+        /* ================= GRID ================= */
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            border: 1px solid #e7ecf2;
+            border-radius: 15px;
+            padding: 22px;
+            box-shadow: 0 4px 15px rgba(22, 34, 51, 0.03);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .panel-title h3 {
+            font-size: 15px;
+        }
+
+        .panel-title span {
+            font-size: 11px;
+            color: #8a95a5;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        /* ================= COMPASS ================= */
+
+        .compass-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+        }
+
+        .compass {
+            position: relative;
+            width: 235px;
+            height: 235px;
+            border: 3px solid #dce4ee;
+            border-radius: 50%;
+            background: radial-gradient(circle, #f9fbfd 0%, #eef3f8 100%);
+            box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.04);
+        }
+
+        .compass::before {
+            content: "";
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            left: 10%;
+            top: 10%;
+            border: 1px dashed #c9d2de;
+            border-radius: 50%;
+        }
+
+        .direction {
+            position: absolute;
+            font-size: 13px;
+            font-weight: 800;
+            color: #59677a;
+        }
+
+        .north {
+            top: 9px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #1677ff;
+        }
+
+        .east {
+            right: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .south {
+            bottom: 9px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .west {
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .needle {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 4px;
+            height: 85px;
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            background: #1677ff;
+            border-radius: 5px;
+            transition: transform 0.8s ease;
+        }
+
+        .needle::after {
+            content: "";
+            position: absolute;
+            top: -9px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 15px solid #1677ff;
+        }
+
+        .compass-center {
+            position: absolute;
+            width: 17px;
+            height: 17px;
+            border-radius: 50%;
+            background: #172033;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+        }
+
+        .direction-value {
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        .direction-value strong {
+            font-size: 22px;
+        }
+
+        .direction-value p {
+            font-size: 11px;
+            color: #8b96a6;
+            margin-top: 3px;
+        }
+
+        /* ================= ENVIRONMENT ================= */
+
+        .environment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .environment-item {
+            border: 1px solid #edf0f4;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .environment-item span {
+            display: block;
+            color: #8290a1;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .environment-item strong {
+            font-size: 22px;
+        }
+
+        /* ================= TABLE ================= */
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th {
+            background: #f7f9fc;
+            color: #718096;
+            text-align: left;
+            padding: 12px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 13px 12px;
+            border-bottom: 1px solid #edf0f4;
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ================= SETTINGS ================= */
+
+        .settings {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 15, 30, 0.55);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings.show {
+            display: flex;
+        }
+
+        .settings-box {
+            width: 400px;
+            max-width: 90%;
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+        }
+
+        .settings-box h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 17px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #657286;
+            margin-bottom: 7px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #dce3eb;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 17px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-cancel {
+            background: #edf0f4;
+            color: #596579;
+        }
+
+        .btn-save {
+            background: #1677ff;
+            color: white;
+        }
+
+        /* ================= LOADING ================= */
+
+        .loading {
+            color: #8a95a5;
+            font-size: 12px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #8b96a6;
+            font-size: 12px;
+        }
+
+        /* ================= RESPONSIVE ================= */
+
+        @media (max-width: 1100px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .sidebar {
+                width: 65px;
+                padding: 20px 8px;
+            }
+
+            .logo {
+                justify-content: center;
+                padding: 0 0 25px;
+            }
+
+            .logo-text,
+            .menu-title,
+            .menu-item span,
+            .sidebar-bottom span {
+                display: none;
+            }
+
+            .menu-item {
+                justify-content: center;
+                padding: 13px 5px;
+            }
+
+            .sidebar-bottom {
+                left: 18px;
+            }
+
+            .main {
+                margin-left: 65px;
+            }
+
+            .topbar {
+                padding: 0 18px;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .environment-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title h1 {
+                font-size: 18px;
+            }
+
+            .page-title p {
+                font-size: 10px;
+            }
+
+            .top-status {
+                font-size: 10px;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-icon">🌊</div>
-      <div class="brand-text">
-        <h2>Monitoring Pesisir</h2>
-        <p>IoT Environmental System</p>
-      </div>
-    </div>
+    <!-- ================= SIDEBAR ================= -->
 
-    <div class="menu-title">Menu</div>
-    <div class="menu">
-      <a href="index.html" class="menu-item">
-        <span class="menu-icon">📊</span>
-        <span>Dashboard</span>
-      </a>
-      <a href="lstm.html" class="menu-item">
-        <span class="menu-icon">🤖</span>
-        <span>Prediksi LSTM (H-1)</span>
-      </a>
-      <a href="lstm_7days.html" class="menu-item active">
-        <span class="menu-icon">📅</span>
-        <span>Prediksi 7 Hari Kedepan</span>
-      </a>
-    </div>
-  </aside>
+    <aside class="sidebar">
 
-  <main class="main">
-    <div class="topbar">
-      <div class="page-title">
-        <h1>Proyeksi LSTM 7 Hari Ke Depan</h1>
-        <p>Menggunakan seluruh sampel data historis untuk memprediksi tren mingguan setiap pengukuran</p>
-      </div>
-      <div>
-        <button id="btnRun" class="btn-action" onclick="execute7DayPrediction()">📅 Hitung Prediksi 7 Hari</button>
-      </div>
-    </div>
+        <div class="logo">
+            <div class="logo-icon">🌊</div>
 
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <div class="panel-title">Status Pelatihan Seluruh Data Histori</div>
-          <div class="panel-subtitle" id="statusText">Siap mengolah seluruh database Firebase...</div>
+            <div class="logo-text">
+                <h2>Monitoring Pesisir</h2>
+                <p>IoT Environmental System</p>
+            </div>
         </div>
-      </div>
-      <div class="progress-bar-bg">
-        <div id="progressFill" class="progress-bar-fill"></div>
-      </div>
+
+        <div class="menu-title">
+            Menu
+        </div>
+
+        <div class="menu-item active" onclick="showDashboard()">
+            <div class="menu-icon">▦</div>
+            <span>Dashboard</span>
+        </div>
+
+        <div class="menu-item" onclick="scrollToData()">
+            <div class="menu-icon">📊</div>
+            <span>Data Sensor</span>
+        </div>
+
+        <div class="menu-item" onclick="openSettings()">
+            <div class="menu-icon">⚙</div>
+            <span>Pengaturan</span>
+        </div>
+
+        <div class="sidebar-bottom">
+            <div class="connection">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="connectionText">Menghubungkan...</span>
+            </div>
+        </div>
+
+    </aside>
+
+
+    <!-- ================= MAIN ================= -->
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="page-title">
+                <h1>Dashboard Monitoring Pesisir</h1>
+                <p>Arah angin, kecepatan angin, kondisi atmosfer dan tinggi muka air</p>
+            </div>
+
+            <div class="top-status">
+                <div id="topStatusDot" class="status-dot"></div>
+                <span id="topStatus">Offline</span>
+            </div>
+
+        </header>
+
+
+        <section class="content">
+
+            <!-- ================= SENSOR CARDS ================= -->
+
+            <div class="cards">
+
+                <div class="card">
+
+                    <div class="card-header">
+                        <div class="card-label">
+                            KECEPATAN ANGIN
+                        </div>
+
+                        <div class="card-icon">
+                            💨
+                        </div>
+                    </div>
+
+                    <div>
+                        <span id="windSpeed" class="card-value">0.00</span>
+                        <span class="card-unit">m/s</span>
+                    </div>
+
+                    <div class="card-footer">
+                        <span id="windSpeedKmh">0.00 km/h</span>
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+                        <div class="card-label">
+                            ARAH ANGIN
+                        </div>
+
+                        <div class="card-icon">
+                            🧭
+                        </div>
+                    </div>
+
+                    <div>
+                        <span id="windDirection" class="card-value">-</span>
+                    </div>
+
+                    <div class="card-footer">
+                        <span id="windDegree">0°</span>
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+                        <div class="card-label">
+                            SUHU UDARA
+                        </div>
+
+                        <div class="card-icon">
+                            🌡️
+                        </div>
+                    </div>
+
+                    <div>
+                        <span id="temperature" class="card-value">0.00</span>
+                        <span class="card-unit">°C</span>
+                    </div>
+
+                    <div class="card-footer">
+                        Sensor BME280
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+                        <div class="card-label">
+                            KELEMBAPAN
+                        </div>
+
+                        <div class="card-icon">
+                            💧
+                        </div>
+                    </div>
+
+                    <div>
+                        <span id="humidity" class="card-value">0.00</span>
+                        <span class="card-unit">%</span>
+                    </div>
+
+                    <div class="card-footer">
+                        Sensor BME280
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= CHART + COMPASS ================= -->
+
+            <div class="grid">
+
+                <div class="panel">
+
+                    <div class="panel-title">
+
+                        <h3>Kecepatan Angin</h3>
+
+                        <span>
+                            Data realtime
+                        </span>
+
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="windChart"></canvas>
+                    </div>
+
+                </div>
+
+
+                <div class="panel">
+
+                    <div class="panel-title">
+
+                        <h3>Arah Angin</h3>
+
+                        <span>
+                            Realtime
+                        </span>
+
+                    </div>
+
+                    <div class="compass-area">
+
+                        <div>
+
+                            <div class="compass">
+
+                                <div class="direction north">
+                                    U
+                                </div>
+
+                                <div class="direction east">
+                                    T
+                                </div>
+
+                                <div class="direction south">
+                                    S
+                                </div>
+
+                                <div class="direction west">
+                                    B
+                                </div>
+
+                                <div id="needle" class="needle"></div>
+
+                                <div class="compass-center"></div>
+
+                            </div>
+
+                            <div class="direction-value">
+
+                                <strong id="compassDirection">
+                                    -
+                                </strong>
+
+                                <p id="compassDegree">
+                                    0°
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= ENVIRONMENT ================= -->
+
+            <div class="panel" style="margin-bottom:20px;">
+
+                <div class="panel-title">
+                    <h3>Kondisi Lingkungan</h3>
+                    <span>Sensor BME280</span>
+                </div>
+
+                <div class="environment-grid">
+
+                    <div class="environment-item">
+                        <span>Suhu Udara</span>
+                        <strong>
+                            <span id="envTemp">0.00</span> °C
+                        </strong>
+                    </div>
+
+                    <div class="environment-item">
+                        <span>Kelembapan Udara</span>
+                        <strong>
+                            <span id="envHumidity">0.00</span> %
+                        </strong>
+                    </div>
+
+                    <div class="environment-item">
+                        <span>Tekanan Udara</span>
+                        <strong>
+                            <span id="pressure">0.00</span> hPa
+                        </strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= SEA LEVEL ================= -->
+
+            <div class="panel" style="margin-bottom:20px;">
+
+                <div class="panel-title">
+
+                    <h3>Ketinggian Permukaan Air</h3>
+
+                    <span>
+                        Sensor Ultrasonik
+                    </span>
+
+                </div>
+
+                <div class="cards" style="margin:0;">
+
+                    <div class="card">
+
+                        <div class="card-header">
+                            <div class="card-label">
+                                JARAK SENSOR
+                            </div>
+
+                            <div class="card-icon">
+                                📏
+                            </div>
+                        </div>
+
+                        <div>
+                            <span id="distance" class="card-value">0.00</span>
+                            <span class="card-unit">m</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="card">
+
+                        <div class="card-header">
+                            <div class="card-label">
+                                TINGGI MUKA AIR
+                            </div>
+
+                            <div class="card-icon">
+                                🌊
+                            </div>
+                        </div>
+
+                        <div>
+                            <span id="waterLevel" class="card-value">0.00</span>
+                            <span class="card-unit">m</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= ENVIRONMENT CHART ================= -->
+
+            <div class="panel" style="margin-bottom:20px;">
+
+                <div class="panel-title">
+
+                    <h3>Grafik Kondisi Lingkungan</h3>
+
+                    <span>
+                        Data terakhir
+                    </span>
+
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="environmentChart"></canvas>
+                </div>
+
+            </div>
+
+
+            <!-- ================= DATA TABLE ================= -->
+
+            <div id="dataSection" class="panel">
+
+                <div class="panel-title">
+
+                    <h3>Data Sensor Terbaru</h3>
+
+                    <span id="lastUpdate">
+                        Belum ada data
+                    </span>
+
+                </div>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Arah Angin</th>
+                                <th>Kecepatan</th>
+                                <th>Suhu</th>
+                                <th>Kelembapan</th>
+                                <th>Tekanan</th>
+                                <th>Jarak</th>
+                                <th>Tinggi Air</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="dataTable">
+
+                            <tr>
+                                <td colspan="8" class="no-data">
+                                    Menunggu data Firebase...
+                                </td>
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ================= SETTINGS MODAL ================= -->
+
+    <div id="settingsModal" class="settings">
+
+        <div class="settings-box">
+
+            <h2>Pengaturan Sensor</h2>
+
+            <div class="form-group">
+
+                <label>
+                    Tinggi posisi sensor dari dasar/acuan (meter)
+                </label>
+
+                <input
+                    type="number"
+                    id="sensorHeightInput"
+                    value="2.50"
+                    step="0.01"
+                >
+
+            </div>
+
+            <div class="buttons">
+
+                <button
+                    class="btn-cancel"
+                    onclick="closeSettings()"
+                >
+                    Batal
+                </button>
+
+                <button
+                    class="btn-save"
+                    onclick="saveSettings()"
+                >
+                    Simpan
+                </button>
+
+            </div>
+
+        </div>
+
     </div>
 
-    <!-- 1. GRAFIK AIR LAUT -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">1. Proyeksi Tinggi Muka Air Laut (m) - 7 Hari Ke Depan</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="chartWater7"></canvas>
-      </div>
-    </div>
-
-    <!-- 2. GRAFIK SUHU UDARA -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">2. Proyeksi Suhu Udara (°C) - 7 Hari Ke Depan</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="chartTemp7"></canvas>
-      </div>
-    </div>
-
-    <!-- 3. GRAFIK KELEMBABAN UDARA -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">3. Proyeksi Kelembaban Udara (%) - 7 Hari Ke Depan</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="chartHum7"></canvas>
-      </div>
-    </div>
-
-    <!-- 4. GRAFIK KECEPATAN ANGIN -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">4. Proyeksi Kecepatan Angin (m/s) - 7 Hari Ke Depan</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="chartWindSpeed7"></canvas>
-      </div>
-    </div>
-
-    <!-- 5. GRAFIK ARAH ANGIN -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">5. Proyeksi Arah Angin (°) - 7 Hari Ke Depan</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="chartWindDir7"></canvas>
-      </div>
-    </div>
-
-    <!-- 6. GRAFIK TEKANAN UDARA -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">6. Proyeksi Tekanan Udara (hPa) - 7 Hari Ke Depan</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="chartPressure7"></canvas>
-      </div>
-    </div>
-
-    <!-- TABEL REKAP PROYEKSI 7 HARI -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">Tabel Ringkasan Prediksi Rata-Rata 7 Hari Ke Depan</div>
-      </div>
-      <div style="overflow-x: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>HARI</th>
-              <th>TANGGAL PROYEKSI</th>
-              <th>AIR LAUT (m)</th>
-              <th>SUHU (°C)</th>
-              <th>KELEMBABAN (%)</th>
-              <th>TEKANAN (hPa)</th>
-              <th>KEC. ANGIN (m/s)</th>
-              <th>ARAH ANGIN (°)</th>
-            </tr>
-          </thead>
-          <tbody id="table7DaysBody">
-            <tr>
-              <td colspan="8" style="text-align: center; color: #64748b;">Klik tombol di atas untuk melihat prediksi 7 hari ke depan.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </main>
-</div>
 
 <script>
-  // KREDENSIAL FIREBASE
-  const firebaseConfig = {
-    apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
-    authDomain: "arah-angin-76f91.firebaseapp.com",
-    databaseURL: "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "arah-angin-76f91",
-    storageBucket: "arah-angin-76f91.firebasestorage.app",
-    messagingSenderId: "937712967453",
-    appId: "1:937712967453:web:36e81a289fe2a33b694bf4"
-  };
 
-  if (!firebase.apps.length) {
+    /* =====================================================
+       FIREBASE CONFIGURATION
+       ===================================================== */
+
+    const firebaseConfig = {
+
+        apiKey:
+            "AIzaSyCt2pkO6xvYpDXFHNqbFWmlMmS2JLlSjA0",
+
+        authDomain:
+            "arah-angin-76f91.firebaseapp.com",
+
+        databaseURL:
+            "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
+
+        projectId:
+            "arah-angin-76f91",
+
+        storageBucket:
+            "arah-angin-76f91.firebasestorage.app",
+
+        messagingSenderId:
+            "937712967453",
+
+        appId:
+            "1:937712967453:web:36e81a289fe2a33b694bf4",
+
+        measurementId:
+            "G-YKXYC252NV"
+    };
+
+
+    /* =====================================================
+       INITIALIZE FIREBASE
+       ===================================================== */
+
     firebase.initializeApp(firebaseConfig);
-  }
-  const db = firebase.database();
 
-  let charts7 = {};
+    const database = firebase.database();
 
-  function createSingleChart(canvasId, titleUnit, mainColor) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    return new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          {
-            label: `Seluruh Data Histori (${titleUnit})`,
-            data: [],
-            borderColor: mainColor,
-            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-            tension: 0.2,
-            fill: true
-          },
-          {
-            label: `Prediksi 7 Hari (${titleUnit})`,
-            data: [],
-            borderColor: '#ef4444',
-            borderDash: [5, 5],
-            tension: 0.2,
-            pointRadius: 4
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#94a3b8' } } },
-        scales: {
-          x: { ticks: { color: '#64748b' } },
-          y: { ticks: { color: '#64748b' }, beginAtZero: false }
+
+    /* =====================================================
+       GLOBAL VARIABLE
+       ===================================================== */
+
+    let historyData = [];
+
+    let latestData = null;
+
+    let sensorHeight = 2.50;
+
+
+    /* =====================================================
+       LOAD SENSOR HEIGHT
+       ===================================================== */
+
+    const savedHeight =
+        localStorage.getItem("sensorHeight");
+
+    if (savedHeight !== null) {
+
+        sensorHeight =
+            parseFloat(savedHeight);
+
+    }
+
+
+    /* =====================================================
+       DIRECTION
+       ===================================================== */
+
+    const DIRECTION_DEG = {
+
+        "utara": 0,
+
+        "timur laut": 45,
+
+        "timur": 90,
+
+        "tenggara": 135,
+
+        "selatan": 180,
+
+        "barat daya": 225,
+
+        "barat": 270,
+
+        "barat laut": 315
+
+    };
+
+
+    /* =====================================================
+       HELPER
+       ===================================================== */
+
+    function numberValue(value) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ""
+        ) {
+            return 0;
         }
-      }
-    });
-  }
 
-  function initCharts() {
-    charts7.water = createSingleChart('chartWater7', 'm', '#38bdf8');
-    charts7.temp = createSingleChart('chartTemp7', '°C', '#eab308');
-    charts7.hum = createSingleChart('chartHum7', '%', '#06b6d4');
-    charts7.windSpeed = createSingleChart('chartWindSpeed7', 'm/s', '#f43f5e');
-    charts7.windDir = createSingleChart('chartWindDir7', '°', '#a855f7');
-    charts7.pressure = createSingleChart('chartPressure7', 'hPa', '#10b981');
-  }
+        const number =
+            parseFloat(value);
 
-  async function execute7DayPrediction() {
-    const btnRun = document.getElementById('btnRun');
-    const statusText = document.getElementById('statusText');
-    const progressFill = document.getElementById('progressFill');
+        return isNaN(number)
+            ? 0
+            : number;
+    }
 
-    btnRun.disabled = true;
-    statusText.innerText = "Mengambil seluruh database histori Firebase...";
-    progressFill.style.width = "10%";
 
-    try {
-      let snapshot = await db.ref('sensor').once('value');
-      let rawData = snapshot.val();
+    function getDirectionDegree(direction) {
 
-      if (!rawData) {
-        snapshot = await db.ref('cuaca/history').once('value');
-        rawData = snapshot.val();
-      }
-
-      if (!rawData) throw new Error("Data histori tidak ditemukan.");
-
-      // Langkah 1: Minta LSTMPredictor memproses SELURUH sampel data histori
-      // Langkah iterasi sekuensial disesuaikan untuk 7 hari ke depan (7 * 24 = 168 langkah jam)
-      const forecastSteps7Days = 7 * 24; 
-
-      const result = await LSTMPredictor.run(
-        rawData,
-        10, // lookback window lebih besar untuk data panjang
-        forecastSteps7Days,
-        (epoch, total, loss) => {
-          const pct = Math.round((epoch / total) * 80) + 10;
-          progressFill.style.width = pct + "%";
-          statusText.innerText = `Training Seluruh Data: Epoch ${epoch}/${total} - Loss: ${loss.toFixed(6)}`;
+        if (!direction) {
+            return 0;
         }
-      );
 
-      // Langkah 2: Agregasi Hasil Prediksi Menjadi 7 Hari
-      const dailyPredictions = processDailyAggregates(result.predictions);
+        const text =
+            String(direction)
+                .toLowerCase()
+                .trim();
 
-      progressFill.style.width = "100%";
-      statusText.innerText = "Prediksi 7 Hari Ke Depan Berhasil Dihitung!";
+        if (
+            DIRECTION_DEG[text] !== undefined
+        ) {
 
-      updateUI(result.historical, dailyPredictions);
-    } catch (err) {
-      alert("Error: " + err.message);
-      statusText.innerText = "Gagal memproses prediksi";
-      progressFill.style.width = "0%";
-    } finally {
-      btnRun.disabled = false;
-    }
-  }
+            return DIRECTION_DEG[text];
 
-  // Mengagregasikan hasil sekuensial jam menjadi rata-rata harian (7 Hari)
-  function processDailyAggregates(hourlyPredictions) {
-    const daily = [];
-    const today = new Date();
+        }
 
-    for (let day = 0; day < 7; day++) {
-      const slice = hourlyPredictions.slice(day * 24, (day + 1) * 24);
-      if (slice.length === 0) break;
+        const degree =
+            parseFloat(text);
 
-      const avg = slice.reduce((acc, curr) => ({
-        water_level: acc.water_level + curr.water_level,
-        temp: acc.temp + curr.temp,
-        humidity: acc.humidity + curr.humidity,
-        pressure: acc.pressure + curr.pressure,
-        wind_speed: acc.wind_speed + curr.wind_speed,
-        wind_dir: acc.wind_dir + curr.wind_dir
-      }), { water_level: 0, temp: 0, humidity: 0, pressure: 0, wind_speed: 0, wind_dir: 0 });
+        if (!isNaN(degree)) {
 
-      const count = slice.length;
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() + day + 1);
+            return degree;
 
-      daily.push({
-        dayName: `Hari ke-${day + 1}`,
-        dateStr: targetDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }),
-        water_level: Number((avg.water_level / count).toFixed(2)),
-        temp: Number((avg.temp / count).toFixed(1)),
-        humidity: Number((avg.humidity / count).toFixed(1)),
-        pressure: Number((avg.pressure / count).toFixed(1)),
-        wind_speed: Number((avg.wind_speed / count).toFixed(1)),
-        wind_dir: Number((avg.wind_dir / count).toFixed(0))
-      });
+        }
+
+        return 0;
     }
 
-    return daily;
-  }
 
-  function updateUI(historicalData, dailyPredictions) {
-    const histLabels = historicalData.map(d => d.label);
-    const futureLabels = dailyPredictions.map(d => d.dateStr);
-    const allLabels = [...histLabels, ...futureLabels];
+    function getTimestamp(data) {
 
-    function updateChart7(chartInstance, histDataArr, futureDataArr) {
-      chartInstance.data.labels = allLabels;
-      chartInstance.data.datasets[0].data = [...histDataArr, ...Array(dailyPredictions.length).fill(null)];
-      
-      // Menghubungkan titik terakhir histori ke titik awal prediksi
-      const pad = Array(histDataArr.length - 1).fill(null);
-      const lastHistVal = histDataArr[histDataArr.length - 1];
-      chartInstance.data.datasets[1].data = [...pad, lastHistVal, ...futureDataArr];
-      
-      chartInstance.update();
+        if (!data) {
+            return 0;
+        }
+
+        if (data.timestamp) {
+
+            if (
+                typeof data.timestamp === "number"
+            ) {
+                return data.timestamp;
+            }
+
+            const parsed =
+                Date.parse(data.timestamp);
+
+            if (!isNaN(parsed)) {
+                return parsed;
+            }
+
+        }
+
+        if (
+            data.tanggal &&
+            data.waktu
+        ) {
+
+            const parsed =
+                Date.parse(
+                    data.tanggal +
+                    " " +
+                    data.waktu
+                );
+
+            if (!isNaN(parsed)) {
+                return parsed;
+            }
+
+        }
+
+        return 0;
     }
 
-    // Render Grafik Masing-Masing
-    updateChart7(charts7.water, historicalData.map(d => d.water_level), dailyPredictions.map(d => d.water_level));
-    updateChart7(charts7.temp, historicalData.map(d => d.temp), dailyPredictions.map(d => d.temp));
-    updateChart7(charts7.hum, historicalData.map(d => d.humidity), dailyPredictions.map(d => d.humidity));
-    updateChart7(charts7.windSpeed, historicalData.map(d => d.wind_speed), dailyPredictions.map(d => d.wind_speed));
-    updateChart7(charts7.windDir, historicalData.map(d => d.wind_dir), dailyPredictions.map(d => d.wind_dir));
-    updateChart7(charts7.pressure, historicalData.map(d => d.pressure), dailyPredictions.map(d => d.pressure));
 
-    // Render Tabel Rekap 7 Hari
-    const tableBody = document.getElementById('table7DaysBody');
-    tableBody.innerHTML = '';
-    dailyPredictions.forEach(d => {
-      tableBody.innerHTML += `
-        <tr>
-          <td style="font-weight: 600; color: #ffffff;">${d.dayName}</td>
-          <td style="color: #94a3b8;">${d.dateStr}</td>
-          <td style="color: #38bdf8; font-weight: bold;">${d.water_level.toFixed(2)}</td>
-          <td>${d.temp.toFixed(1)}</td>
-          <td>${d.humidity.toFixed(1)}</td>
-          <td>${d.pressure.toFixed(1)}</td>
-          <td style="color: #f43f5e; font-weight: bold;">${d.wind_speed.toFixed(1)}</td>
-          <td style="color: #a855f7;">${d.wind_dir}°</td>
-        </tr>
-      `;
-    });
-  }
+    function formatTime(timestamp) {
 
-  window.onload = initCharts;
+        if (!timestamp) {
+            return "-";
+        }
+
+        const date =
+            new Date(timestamp);
+
+        return date.toLocaleString(
+            "id-ID",
+            {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }
+        );
+
+    }
+
+
+    function getDistance(data) {
+
+        if (!data) {
+            return 0;
+        }
+
+        if (
+            data.jarak_meter !== undefined
+        ) {
+
+            return numberValue(
+                data.jarak_meter
+            );
+
+        }
+
+        if (
+            data.jarak_cm !== undefined
+        ) {
+
+            return (
+                numberValue(
+                    data.jarak_cm
+                ) / 100
+            );
+
+        }
+
+        return 0;
+    }
+
+
+    function getWaterLevel(data) {
+
+        const distance =
+            getDistance(data);
+
+        const level =
+            sensorHeight - distance;
+
+        return Math.max(
+            0,
+            level
+        );
+
+    }
+
+
+    /* =====================================================
+       UPDATE DASHBOARD
+       ===================================================== */
+
+    function updateDashboard(data) {
+
+        if (!data) {
+            return;
+        }
+
+        latestData = data;
+
+
+        /* KECEPATAN */
+
+        const speedMs =
+            numberValue(
+                data.kecepatan_ms
+            );
+
+        const speedKmh =
+            numberValue(
+                data.kecepatan_kmh
+            );
+
+
+        document.getElementById(
+            "windSpeed"
+        ).textContent =
+            speedMs.toFixed(2);
+
+
+        document.getElementById(
+            "windSpeedKmh"
+        ).textContent =
+            speedKmh.toFixed(2) +
+            " km/h";
+
+
+        /* ARAH */
+
+        const direction =
+            data.arah_angin ||
+            data.arah ||
+            "-";
+
+        const degree =
+            getDirectionDegree(
+                direction
+            );
+
+
+        document.getElementById(
+            "windDirection"
+        ).textContent =
+            direction;
+
+
+        document.getElementById(
+            "windDegree"
+        ).textContent =
+            degree.toFixed(0) +
+            "°";
+
+
+        document.getElementById(
+            "compassDirection"
+        ).textContent =
+            direction;
+
+
+        document.getElementById(
+            "compassDegree"
+        ).textContent =
+            degree.toFixed(0) +
+            "°";
+
+
+        /* COMPASS */
+
+        document.getElementById(
+            "needle"
+        ).style.transform =
+            "translate(-50%, -100%) rotate(" +
+            degree +
+            "deg)";
+
+
+        /* SUHU */
+
+        const temperature =
+            numberValue(
+                data.suhu
+            );
+
+
+        document.getElementById(
+            "temperature"
+        ).textContent =
+            temperature.toFixed(2);
+
+
+        document.getElementById(
+            "envTemp"
+        ).textContent =
+            temperature.toFixed(2);
+
+
+        /* KELEMBAPAN */
+
+        const humidity =
+            numberValue(
+                data.kelembapan
+            );
+
+
+        document.getElementById(
+            "humidity"
+        ).textContent =
+            humidity.toFixed(2);
+
+
+        document.getElementById(
+            "envHumidity"
+        ).textContent =
+            humidity.toFixed(2);
+
+
+        /* TEKANAN */
+
+        const pressure =
+            numberValue(
+                data.tekanan
+            );
+
+
+        document.getElementById(
+            "pressure"
+        ).textContent =
+            pressure.toFixed(2);
+
+
+        /* JARAK */
+
+        const distance =
+            getDistance(data);
+
+
+        document.getElementById(
+            "distance"
+        ).textContent =
+            distance.toFixed(2);
+
+
+        /* TINGGI AIR */
+
+        const waterLevel =
+            getWaterLevel(data);
+
+
+        document.getElementById(
+            "waterLevel"
+        ).textContent =
+            waterLevel.toFixed(2);
+
+
+        /* WAKTU */
+
+        const timestamp =
+            getTimestamp(data);
+
+
+        document.getElementById(
+            "lastUpdate"
+        ).textContent =
+            timestamp
+                ? "Update: " +
+                  formatTime(timestamp)
+                : "Data realtime";
+
+    }
+
+
+    /* =====================================================
+       FIREBASE CONNECTION STATUS
+       ===================================================== */
+
+    database.ref(".info/connected")
+        .on(
+            "value",
+            function(snapshot) {
+
+                const connected =
+                    snapshot.val() === true;
+
+
+                const dot =
+                    document.getElementById(
+                        "statusDot"
+                    );
+
+                const topDot =
+                    document.getElementById(
+                        "topStatusDot"
+                    );
+
+                const text =
+                    document.getElementById(
+                        "connectionText"
+                    );
+
+                const topText =
+                    document.getElementById(
+                        "topStatus"
+                    );
+
+
+                if (connected) {
+
+                    dot.classList.add(
+                        "connected"
+                    );
+
+                    topDot.classList.add(
+                        "connected"
+                    );
+
+                    text.textContent =
+                        "Firebase Connected";
+
+                    topText.textContent =
+                        "Online";
+
+                } else {
+
+                    dot.classList.remove(
+                        "connected"
+                    );
+
+                    topDot.classList.remove(
+                        "connected"
+                    );
+
+                    text.textContent =
+                        "Firebase Offline";
+
+                    topText.textContent =
+                        "Offline";
+
+                }
+
+            }
+        );
+
+
+    /* =====================================================
+       FIREBASE LATEST DATA
+       ===================================================== */
+
+    database.ref("cuaca")
+        .on(
+            "value",
+            function(snapshot) {
+
+                const data =
+                    snapshot.val();
+
+                if (!data) {
+                    return;
+                }
+
+
+                /*
+                 Jika cuaca langsung berisi data sensor
+                */
+
+                if (
+                    data.kecepatan_ms !== undefined ||
+                    data.arah_angin !== undefined ||
+                    data.suhu !== undefined ||
+                    data.kelembapan !== undefined
+                ) {
+
+                    updateDashboard(data);
+
+                }
+
+            },
+            function(error) {
+
+                console.error(
+                    "Firebase error:",
+                    error
+                );
+
+            }
+        );
+
+
+    /* =====================================================
+       FIREBASE HISTORY
+       ===================================================== */
+
+    database.ref("cuaca/history")
+        .on(
+            "value",
+            function(snapshot) {
+
+                const data =
+                    snapshot.val();
+
+                if (!data) {
+
+                    historyData = [];
+
+                    updateCharts();
+
+                    updateTable();
+
+                    return;
+                }
+
+
+                let records = [];
+
+
+                /*
+                 Jika Firebase berbentuk object
+                 */
+
+                if (
+                    typeof data === "object" &&
+                    !Array.isArray(data)
+                ) {
+
+                    records =
+                        Object.values(data);
+
+                } else if (
+                    Array.isArray(data)
+                ) {
+
+                    records = data;
+
+                }
+
+
+                historyData =
+                    records
+                        .filter(
+                            item =>
+                                item &&
+                                typeof item === "object"
+                        )
+                        .sort(
+                            function(a, b) {
+
+                                return (
+                                    getTimestamp(a) -
+                                    getTimestamp(b)
+                                );
+
+                            }
+                        );
+
+
+                if (
+                    historyData.length > 0
+                ) {
+
+                    updateDashboard(
+                        historyData[
+                            historyData.length - 1
+                        ]
+                    );
+
+                }
+
+
+                updateCharts();
+
+                updateTable();
+
+            },
+            function(error) {
+
+                console.error(
+                    "History error:",
+                    error
+                );
+
+            }
+        );
+
+
+    /* =====================================================
+       WIND CHART
+       ===================================================== */
+
+    const windCtx =
+        document
+            .getElementById(
+                "windChart"
+            )
+            .getContext("2d");
+
+
+    const windChart =
+        new Chart(
+            windCtx,
+            {
+
+                type: "line",
+
+                data: {
+
+                    labels: [],
+
+                    datasets: [
+
+                        {
+
+                            label:
+                                "Kecepatan Angin (m/s)",
+
+                            data: [],
+
+                            borderWidth: 2,
+
+                            tension: 0.35,
+
+                            fill: false,
+
+                            pointRadius: 2
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    interaction: {
+
+                        intersect: false,
+
+                        mode: "index"
+
+                    },
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: true,
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    "m/s"
+
+                            }
+
+                        },
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    "Waktu"
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+
+    /* =====================================================
+       ENVIRONMENT CHART
+       ===================================================== */
+
+    const environmentCtx =
+        document
+            .getElementById(
+                "environmentChart"
+            )
+            .getContext("2d");
+
+
+    const environmentChart =
+        new Chart(
+            environmentCtx,
+            {
+
+                type: "line",
+
+                data: {
+
+                    labels: [],
+
+                    datasets: [
+
+                        {
+
+                            label:
+                                "Suhu (°C)",
+
+                            data: [],
+
+                            borderWidth: 2,
+
+                            tension: 0.35,
+
+                            pointRadius: 2
+
+                        },
+
+                        {
+
+                            label:
+                                "Kelembapan (%)",
+
+                            data: [],
+
+                            borderWidth: 2,
+
+                            tension: 0.35,
+
+                            pointRadius: 2
+
+                        },
+
+                        {
+
+                            label:
+                                "Tekanan (hPa)",
+
+                            data: [],
+
+                            borderWidth: 2,
+
+                            tension: 0.35,
+
+                            pointRadius: 2
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    interaction: {
+
+                        intersect: false,
+
+                        mode: "index"
+
+                    },
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: false
+
+                        },
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    "Waktu"
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+
+    /* =====================================================
+       UPDATE CHART
+       ===================================================== */
+
+    function updateCharts() {
+
+        const data =
+            historyData.slice(-100);
+
+
+        const labels =
+            data.map(
+                function(item) {
+
+                    const time =
+                        getTimestamp(item);
+
+                    if (!time) {
+                        return "-";
+                    }
+
+                    const date =
+                        new Date(time);
+
+                    return date.toLocaleTimeString(
+                        "id-ID",
+                        {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                        }
+                    );
+
+                }
+            );
+
+
+        /* WIND */
+
+        windChart.data.labels =
+            labels;
+
+
+        windChart.data.datasets[0].data =
+            data.map(
+                function(item) {
+
+                    return numberValue(
+                        item.kecepatan_ms
+                    );
+
+                }
+            );
+
+
+        windChart.update();
+
+
+        /* ENVIRONMENT */
+
+        environmentChart.data.labels =
+            labels;
+
+
+        environmentChart.data.datasets[0].data =
+            data.map(
+                item =>
+                    numberValue(item.suhu)
+            );
+
+
+        environmentChart.data.datasets[1].data =
+            data.map(
+                item =>
+                    numberValue(item.kelembapan)
+            );
+
+
+        environmentChart.data.datasets[2].data =
+            data.map(
+                item =>
+                    numberValue(item.tekanan)
+            );
+
+
+        environmentChart.update();
+
+    }
+
+
+    /* =====================================================
+       UPDATE TABLE
+       ===================================================== */
+
+    function updateTable() {
+
+        const table =
+            document.getElementById(
+                "dataTable"
+            );
+
+
+        const data =
+            historyData
+                .slice()
+                .reverse()
+                .slice(0, 15);
+
+
+        if (
+            data.length === 0
+        ) {
+
+            table.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="8"
+                        class="no-data"
+                    >
+                        Belum ada data sensor
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+
+        }
+
+
+        table.innerHTML =
+            data.map(
+                function(item) {
+
+                    const timestamp =
+                        getTimestamp(item);
+
+
+                    const direction =
+                        item.arah_angin ||
+                        item.arah ||
+                        "-";
+
+
+                    const speed =
+                        numberValue(
+                            item.kecepatan_ms
+                        );
+
+
+                    const temp =
+                        numberValue(
+                            item.suhu
+                        );
+
+
+                    const humidity =
+                        numberValue(
+                            item.kelembapan
+                        );
+
+
+                    const pressure =
+                        numberValue(
+                            item.tekanan
+                        );
+
+
+                    const distance =
+                        getDistance(item);
+
+
+                    const water =
+                        getWaterLevel(item);
+
+
+                    return `
+
+                        <tr>
+
+                            <td>
+                                ${
+                                    timestamp
+                                        ? formatTime(timestamp)
+                                        : "-"
+                                }
+                            </td>
+
+                            <td>
+                                ${direction}
+                            </td>
+
+                            <td>
+                                ${speed.toFixed(2)} m/s
+                            </td>
+
+                            <td>
+                                ${temp.toFixed(2)} °C
+                            </td>
+
+                            <td>
+                                ${humidity.toFixed(2)} %
+                            </td>
+
+                            <td>
+                                ${pressure.toFixed(2)} hPa
+                            </td>
+
+                            <td>
+                                ${distance.toFixed(2)} m
+                            </td>
+
+                            <td>
+                                ${water.toFixed(2)} m
+                            </td>
+
+                        </tr>
+
+                    `;
+
+                }
+            )
+            .join("");
+
+    }
+
+
+    /* =====================================================
+       SETTINGS
+       ===================================================== */
+
+    function openSettings() {
+
+        document.getElementById(
+            "sensorHeightInput"
+        ).value =
+            sensorHeight.toFixed(2);
+
+
+        document.getElementById(
+            "settingsModal"
+        ).classList.add(
+            "show"
+        );
+
+    }
+
+
+    function closeSettings() {
+
+        document.getElementById(
+            "settingsModal"
+        ).classList.remove(
+            "show"
+        );
+
+    }
+
+
+    function saveSettings() {
+
+        const value =
+            parseFloat(
+                document.getElementById(
+                    "sensorHeightInput"
+                ).value
+            );
+
+
+        if (
+            isNaN(value) ||
+            value < 0
+        ) {
+
+            alert(
+                "Masukkan nilai tinggi sensor yang benar."
+            );
+
+            return;
+
+        }
+
+
+        sensorHeight =
+            value;
+
+
+        localStorage.setItem(
+            "sensorHeight",
+            sensorHeight
+        );
+
+
+        if (latestData) {
+
+            const water =
+                getWaterLevel(
+                    latestData
+                );
+
+
+            document.getElementById(
+                "waterLevel"
+            ).textContent =
+                water.toFixed(2);
+
+        }
+
+
+        closeSettings();
+
+    }
+
+
+    /* =====================================================
+       MENU
+       ===================================================== */
+
+    function scrollToData() {
+
+        document.getElementById(
+            "dataSection"
+        ).scrollIntoView(
+            {
+                behavior: "smooth"
+            }
+        );
+
+    }
+
+
+    function showDashboard() {
+
+        window.scrollTo(
+            {
+                top: 0,
+                behavior: "smooth"
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       CLOSE MODAL WHEN CLICK OUTSIDE
+       ===================================================== */
+
+    document.getElementById(
+        "settingsModal"
+    ).addEventListener(
+        "click",
+        function(event) {
+
+            if (
+                event.target === this
+            ) {
+
+                closeSettings();
+
+            }
+
+        }
+    );
+
+
+    /* =====================================================
+       INITIALIZATION
+       ===================================================== */
+
+    document.getElementById(
+        "sensorHeightInput"
+    ).value =
+        sensorHeight.toFixed(2);
+
+
+    console.log(
+        "Dashboard Monitoring Pesisir aktif."
+    );
+
+    console.log(
+        "Firebase database:",
+        firebaseConfig.databaseURL
+    );
+
 </script>
+
 </body>
 </html>
