@@ -93,7 +93,7 @@
     <div class="menu">
       <a href="lstm.html" class="menu-item active">
         <span class="menu-icon">📈</span>
-        <span>Prediksi 1 Hari</span>
+        <span>Prediksi 24 Jam</span>
       </a>
       <a href="lstm_7days.html" class="menu-item">
         <span class="menu-icon">📅</span>
@@ -106,7 +106,7 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Prediksi Model LSTM</h1>
-        <p>Perbandingan kurva warna Aktual Histori vs Prediksi LSTM</p>
+        <p>Perbandingan kurva warna Aktual Histori vs Prediksi LSTM (Interval 30 Menit / 24 Jam)</p>
       </div>
       <div>
         <button id="btnRun" class="btn-action" onclick="executeLSTMPrediction()">⚡ Jalankan Prediksi LSTM</button>
@@ -240,7 +240,7 @@
     <!-- TABEL PREDIKSI MASA DEPAN -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">Detail Hasil Prediksi Langkah Selanjutnya</div>
+        <div class="panel-title">Detail Hasil Prediksi Langkah Selanjutnya (Interval 30 Menit / 24 Jam)</div>
       </div>
       <div style="overflow-x: auto; max-height: 400px;">
         <table>
@@ -285,7 +285,6 @@
 
   let charts = {};
 
-  // FUNGSI MEMBUAT CHART DENGAN WARNA PEMBANDING YANG KONTRAS
   function createSingleChart(canvasId, titleUnit, actualColor, predColor = '#ff3366') {
     const ctx = document.getElementById(canvasId).getContext('2d');
     return new Chart(ctx, {
@@ -306,10 +305,10 @@
           { 
             label: `Prediksi LSTM (${titleUnit})`, 
             data: [], 
-            borderColor: predColor, // Warna pembanding kontras (Crimson / Pink Merah / Kuning)
+            borderColor: predColor, 
             backgroundColor: 'transparent', 
             borderWidth: 2,
-            borderDash: [6, 4], // Garis putus-putus untuk membedakan struktur prediksi
+            borderDash: [6, 4], 
             tension: 0.35,
             pointRadius: 2,
             pointBackgroundColor: predColor
@@ -340,13 +339,12 @@
   }
 
   function initCharts() {
-    // Kombinasi Warna Kontras: Aktual (Terang) vs Prediksi (Crimson / Merah Rose)
-    charts.water = createSingleChart('chartWater', 'm', '#38bdf8', '#ff0055');       // Cyan vs Pink Merah
-    charts.temp = createSingleChart('chartTemp', '°C', '#facc15', '#ef4444');        // Kuning vs Merah
-    charts.hum = createSingleChart('chartHum', '%', '#06b6d4', '#f43f5e');          // Biru Toska vs Rose
-    charts.windSpeed = createSingleChart('chartWindSpeed', 'm/s', '#10b981', '#ff2e93'); // Hijau Emerald vs Neon Magenta
-    charts.windDir = createSingleChart('chartWindDir', '°', '#a855f7', '#ff9900');   // Ungu vs Oranye Bright
-    charts.pressure = createSingleChart('chartPressure', 'hPa', '#6366f1', '#fbbf24'); // Indigo vs Kuning Amber
+    charts.water = createSingleChart('chartWater', 'm', '#38bdf8', '#ff0055');       
+    charts.temp = createSingleChart('chartTemp', '°C', '#facc15', '#ef4444');        
+    charts.hum = createSingleChart('chartHum', '%', '#06b6d4', '#f43f5e');          
+    charts.windSpeed = createSingleChart('chartWindSpeed', 'm/s', '#10b981', '#ff2e93'); 
+    charts.windDir = createSingleChart('chartWindDir', '°', '#a855f7', '#ff9900');   
+    charts.pressure = createSingleChart('chartPressure', 'hPa', '#6366f1', '#fbbf24'); 
   }
 
   async function executeLSTMPrediction() {
@@ -369,19 +367,20 @@
 
       if (!rawData) throw new Error("Data sensor tidak ditemukan di database.");
 
+      // DIUBAH DI SINI: Lookback 14 (jendela historis) dan 48 langkah prediksi (48 x 30 menit = 24 Jam)
       const result = await LSTMPredictor.run(
         rawData,
-        10, 
-        24, 
+        14,   
+        48,   
         (epoch, total, loss) => {
           const pct = Math.round((epoch / total) * 80) + 10;
           progressFill.style.width = pct + "%";
-          statusText.innerText = `Training Seluruh Data: Epoch ${epoch}/${total} - Loss: ${loss.toFixed(6)}`;
+          statusText.innerText = `Training Data (Resample 30 Menit): Epoch ${epoch}/${total} - Loss: ${loss.toFixed(6)}`;
         }
       );
 
       progressFill.style.width = "100%";
-      statusText.innerText = "Prediksi Selesai! Model memproses seluruh sampel histori.";
+      statusText.innerText = "Prediksi 24 Jam Selesai! (Interval 30 Menit per Langkah).";
 
       updateUI(result);
     } catch (err) {
@@ -421,7 +420,7 @@
     }
 
     const histLabels = historical.map(d => d.label);
-    const predLabels = predictions.map((_, idx) => `P+${idx + 1}`);
+    const predLabels = predictions.map((_, idx) => `+${(idx + 1) * 30}m`); // Menandakan interval 30 menit
     const allLabels = [...histLabels, ...predLabels];
 
     const padNulls = Array(lookback).fill(null);
@@ -449,9 +448,10 @@
     const tableBody = document.getElementById('predictionTableBody');
     tableBody.innerHTML = '';
     predictions.forEach((p, idx) => {
+      const jamKe = ((idx + 1) * 0.5).toFixed(1); // Menampilkan keterangan waktu dalam jam (+0.5h, +1.0h, dst.)
       tableBody.innerHTML += `
         <tr>
-          <td>Langkah +${idx + 1}</td>
+          <td>Langkah +${idx + 1} (${jamKe} Jam)</td>
           <td style="color: #38bdf8; font-weight: bold;">${p.water_level.toFixed(2)}</td>
           <td>${p.temp.toFixed(1)}</td>
           <td>${p.humidity.toFixed(1)}</td>
