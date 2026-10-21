@@ -47,7 +47,25 @@
     .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
     .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
 
-    .chart-container { height: 260px; position: relative; }
+    /* SCROLLABLE CHART CONTAINER UNTUK BISA DIGESER KE KANAN */
+    .chart-scroll-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      padding-bottom: 10px;
+    }
+    .chart-container { 
+      height: 280px; 
+      position: relative; 
+      min-width: 1200px; /* Lebar minimum agar grafik dapat digeser horizontal */
+    }
+
+    /* Styling scrollbar agar rapi */
+    .chart-scroll-wrapper::-webkit-scrollbar { height: 8px; }
+    .chart-scroll-wrapper::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
+    .chart-scroll-wrapper::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .chart-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #475569; }
   </style>
 </head>
 <body>
@@ -77,9 +95,9 @@
         <span class="menu-icon">📅</span>
         <span>Prediksi 7 Hari Kedepan</span>
       </a>
-      <a href="historical_charts.html" class="menu-item active">
+      <a href="historical_chart.html" class="menu-item active">
         <span class="menu-icon">📈</span>
-        <span>Grafik Data Pengukuran</span>
+        <span>Grafik Pengukuran</span>
       </a>
     </div>
   </aside>
@@ -89,7 +107,7 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Grafik Murni Data Pengukuran</h1>
-        <p>Visualisasi murni seluruh data histori dari sensor Firebase (Nilai 0 disembunyikan)</p>
+        <p>Visualisasi histori harian (24 jam per grafik, dapat digeser ke kanan)</p>
       </div>
       <div>
         <button class="btn-action" onclick="loadPureHistoricalData()">🔄 Muat Ulang Data</button>
@@ -101,10 +119,12 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">1. Tinggi Muka Air Laut</div>
-          <div class="panel-subtitle">Hasil pengukuran jarak air laut (dalam meter, nilai 0 diabaikan)</div>
+          <div class="panel-subtitle">Hasil pengukuran jarak air laut per 24 jam (m)</div>
         </div>
       </div>
-      <div class="chart-container"><canvas id="chartWaterPure"></canvas></div>
+      <div class="chart-scroll-wrapper">
+        <div class="chart-container"><canvas id="chartWaterPure"></canvas></div>
+      </div>
     </div>
 
     <!-- 2. GRAFIK SUHU UDARA -->
@@ -112,10 +132,12 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">2. Suhu Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan (°C, nilai 0 diabaikan)</div>
+          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan per 24 jam (°C)</div>
         </div>
       </div>
-      <div class="chart-container"><canvas id="chartTempPure"></canvas></div>
+      <div class="chart-scroll-wrapper">
+        <div class="chart-container"><canvas id="chartTempPure"></canvas></div>
+      </div>
     </div>
 
     <!-- 3. GRAFIK KELEMBABAN UDARA -->
@@ -123,10 +145,12 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">3. Kelembaban Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran kelembaban (%, nilai 0 diabaikan)</div>
+          <div class="panel-subtitle">Hasil pengukuran kelembaban per 24 jam (%)</div>
         </div>
       </div>
-      <div class="chart-container"><canvas id="chartHumPure"></canvas></div>
+      <div class="chart-scroll-wrapper">
+        <div class="chart-container"><canvas id="chartHumPure"></canvas></div>
+      </div>
     </div>
 
     <!-- 4. GRAFIK KECEPATAN ANGIN -->
@@ -134,10 +158,12 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">4. Kecepatan Angin</div>
-          <div class="panel-subtitle">Hasil pengukuran kecepatan angin (m/s)</div>
+          <div class="panel-subtitle">Hasil pengukuran kecepatan angin per 24 jam (m/s)</div>
         </div>
       </div>
-      <div class="chart-container"><canvas id="chartWindSpeedPure"></canvas></div>
+      <div class="chart-scroll-wrapper">
+        <div class="chart-container"><canvas id="chartWindSpeedPure"></canvas></div>
+      </div>
     </div>
 
     <!-- 5. GRAFIK ARAH ANGIN -->
@@ -145,10 +171,12 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">5. Arah Angin</div>
-          <div class="panel-subtitle">Hasil pengukuran orientasi arah angin (Derajat °)</div>
+          <div class="panel-subtitle">Hasil pengukuran arah angin per 24 jam (Derajat °)</div>
         </div>
       </div>
-      <div class="chart-container"><canvas id="chartWindDirPure"></canvas></div>
+      <div class="chart-scroll-wrapper">
+        <div class="chart-container"><canvas id="chartWindDirPure"></canvas></div>
+      </div>
     </div>
 
     <!-- 6. GRAFIK TEKANAN UDARA -->
@@ -156,10 +184,12 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">6. Tekanan Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer (hPa, nilai 0 diabaikan)</div>
+          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer per 24 jam (hPa)</div>
         </div>
       </div>
-      <div class="chart-container"><canvas id="chartPressurePure"></canvas></div>
+      <div class="chart-scroll-wrapper">
+        <div class="chart-container"><canvas id="chartPressurePure"></canvas></div>
+      </div>
     </div>
   </main>
 </div>
@@ -196,7 +226,7 @@
           tension: 0.2,
           fill: true,
           pointRadius: 2,
-          spanGaps: true // Mengabaikan nilai null/undefined agar garis tetap terhubung mulus
+          spanGaps: true
         }]
       },
       options: {
@@ -204,7 +234,7 @@
         maintainAspectRatio: false,
         plugins: { legend: { labels: { color: '#94a3b8' } } },
         scales: {
-          x: { ticks: { color: '#64748b' } },
+          x: { ticks: { color: '#64748b', maxRotation: 45, minRotation: 45 } },
           y: { ticks: { color: '#64748b' }, beginAtZero: false }
         }
       }
@@ -256,11 +286,13 @@
           else if (d.includes('barat')) deg = 270;
         }
 
-        let timeLabel = item.waktu ?? (item.timestamp ? item.timestamp.split(' ')[1] : `Data-${index + 1}`);
+        // Format label tanggal dan waktu agar jelas perhari (contoh: 22/10 14:00)
+        let datePart = item.tanggal ?? '';
+        let timePart = item.waktu ?? (item.timestamp ? item.timestamp.split(' ')[1] : `Data-${index + 1}`);
+        let fullLabel = datePart ? `${datePart} ${timePart}` : timePart;
 
         return {
-          label: timeLabel,
-          // Jika nilai 0, ubah menjadi null agar diabaikan oleh Chart.js
+          label: fullLabel,
           water_level: w === 0 ? null : Number(w.toFixed(2)),
           temp: t === 0 ? null : t,
           humidity: h === 0 ? null : h,
@@ -272,7 +304,13 @@
 
       const labels = parsedData.map(d => d.label);
 
-      // Render data ke masing-masing grafik dengan menyaring nilai nol (null)
+      // Perbarui ukuran min-width kontainer secara dinamis berdasarkan jumlah data harian agar bisa digeser
+      const dynamicWidth = Math.max(1000, labels.length * 35) + 'px';
+      document.querySelectorAll('.chart-container').forEach(el => {
+        el.style.minWidth = dynamicWidth;
+      });
+
+      // Render data ke masing-masing grafik
       pureCharts.water.data.labels = labels;
       pureCharts.water.data.datasets[0].data = parsedData.map(d => d.water_level);
       pureCharts.water.update();
