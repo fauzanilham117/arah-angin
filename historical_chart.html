@@ -89,7 +89,7 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Grafik Murni Data Pengukuran</h1>
-        <p>Visualisasi murni seluruh data histori yang diperoleh langsung dari sensor Firebase</p>
+        <p>Visualisasi murni seluruh data histori dari sensor Firebase (Nilai 0 disembunyikan)</p>
       </div>
       <div>
         <button class="btn-action" onclick="loadPureHistoricalData()">🔄 Muat Ulang Data</button>
@@ -101,7 +101,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">1. Tinggi Muka Air Laut</div>
-          <div class="panel-subtitle">Hasil pengukuran jarak air laut (dalam meter)</div>
+          <div class="panel-subtitle">Hasil pengukuran jarak air laut (dalam meter, nilai 0 diabaikan)</div>
         </div>
       </div>
       <div class="chart-container"><canvas id="chartWaterPure"></canvas></div>
@@ -112,7 +112,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">2. Suhu Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan (°C)</div>
+          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan (°C, nilai 0 diabaikan)</div>
         </div>
       </div>
       <div class="chart-container"><canvas id="chartTempPure"></canvas></div>
@@ -123,7 +123,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">3. Kelembaban Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran kelembaban (%)</div>
+          <div class="panel-subtitle">Hasil pengukuran kelembaban (%, nilai 0 diabaikan)</div>
         </div>
       </div>
       <div class="chart-container"><canvas id="chartHumPure"></canvas></div>
@@ -156,7 +156,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">6. Tekanan Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer (hPa)</div>
+          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer (hPa, nilai 0 diabaikan)</div>
         </div>
       </div>
       <div class="chart-container"><canvas id="chartPressurePure"></canvas></div>
@@ -195,7 +195,8 @@
           backgroundColor: fillColor,
           tension: 0.2,
           fill: true,
-          pointRadius: 2
+          pointRadius: 2,
+          spanGaps: true // Mengabaikan nilai null/undefined agar garis tetap terhubung mulus
         }]
       },
       options: {
@@ -244,7 +245,7 @@
         const ws = Number(item.kecepatan_ms ?? item.wind_speed ?? item.kecepatan_angin ?? 0);
         const t = Number(item.suhu ?? item.temp ?? 0);
         const h = Number(item.kelembapan ?? item.kelembaban ?? item.humidity ?? 0);
-        const p = Number(item.tekanan ?? item.pressure ?? 1013.25);
+        const p = Number(item.tekanan ?? item.pressure ?? 0);
         
         let deg = Number(item.arah_angin ?? item.wind_dir ?? 0);
         if (isNaN(deg)) {
@@ -259,10 +260,11 @@
 
         return {
           label: timeLabel,
-          water_level: Number(w.toFixed(2)),
-          temp: t,
-          humidity: h,
-          pressure: p,
+          // Jika nilai 0, ubah menjadi null agar diabaikan oleh Chart.js
+          water_level: w === 0 ? null : Number(w.toFixed(2)),
+          temp: t === 0 ? null : t,
+          humidity: h === 0 ? null : h,
+          pressure: p === 0 ? null : p,
           wind_speed: ws,
           wind_dir: deg
         };
@@ -270,7 +272,7 @@
 
       const labels = parsedData.map(d => d.label);
 
-      // Render data aktual murni ke masing-masing grafik
+      // Render data ke masing-masing grafik dengan menyaring nilai nol (null)
       pureCharts.water.data.labels = labels;
       pureCharts.water.data.datasets[0].data = parsedData.map(d => d.water_level);
       pureCharts.water.update();
