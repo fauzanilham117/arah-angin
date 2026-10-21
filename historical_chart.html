@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grafik Data Pengukuran Murni - Monitoring Pesisir</title>
+
+  <!-- FIREBASE JS SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- CHART.JS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- MODUL LSTM JS (Digunakan untuk parser data Firebase yang konsisten) -->
+  <script src="lstm.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0b1220; color: #e5e7eb; min-height: 100vh; }
+    .app { display: flex; min-height: 100vh; }
+
+    /* SIDEBAR NAVIGASI */
+    .sidebar { width: 250px; background: #111827; border-right: 1px solid #1f2937; padding: 22px 16px; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; padding: 0 8px; }
+    .brand-icon { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 21px; }
+    .brand-text h2 { font-size: 16px; color: #ffffff; margin-bottom: 2px; }
+    .brand-text p { color: #94a3b8; font-size: 11px; }
+    .menu-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 0 10px; margin-bottom: 8px; }
+    .menu { display: flex; flex-direction: column; gap: 5px; }
+    .menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 9px; color: #94a3b8; cursor: pointer; transition: all 0.2s ease-in-out; font-size: 13px; text-decoration: none; }
+    .menu-item:hover { background: #1e293b; color: #ffffff; transform: translateX(3px); }
+    .menu-item.active { background: #1d4ed8; color: #ffffff; font-weight: 600; }
+    .menu-icon { width: 20px; text-align: center; font-size: 16px; }
+
+    /* MAIN CONTENT */
+    .main { margin-left: 250px; width: calc(100% - 250px); min-height: 100vh; padding: 25px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title h1 { font-size: 24px; color: #ffffff; margin-bottom: 4px; }
+    .page-title p { font-size: 12px; color: #64748b; }
+
+    .btn-action { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
+    .btn-action:hover { background: #1d4ed8; }
+
+    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
+    .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
+
+    .chart-container { height: 260px; position: relative; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🌊</div>
+      <div class="brand-text">
+        <h2>Monitoring Pesisir</h2>
+        <p>IoT Environmental System</p>
+      </div>
+    </div>
+
+    <div class="menu-title">Menu Utama</div>
+    <div class="menu">
+      <a href="index.html" class="menu-item">
+        <span class="menu-icon">📊</span>
+        <span>Dashboard Realtime</span>
+      </a>
+      <a href="lstm.html" class="menu-item">
+        <span class="menu-icon">🤖</span>
+        <span>Prediksi LSTM (24 Jam)</span>
+      </a>
+      <a href="lstm_7days.html" class="menu-item">
+        <span class="menu-icon">📅</span>
+        <span>Prediksi 7 Hari Kedepan</span>
+      </a>
+      <a href="historical_charts.html" class="menu-item active">
+        <span class="menu-icon">📈</span>
+        <span>Grafik Data Pengukuran</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title">
+        <h1>Grafik Murni Data Pengukuran</h1>
+        <p>Visualisasi murni seluruh data histori yang diperoleh langsung dari sensor Firebase</p>
+      </div>
+      <div>
+        <button class="btn-action" onclick="loadPureHistoricalData()">🔄 Muat Ulang Data</button>
+      </div>
+    </div>
+
+    <!-- 1. GRAFIK TINGGI AIR LAUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">1. Tinggi Muka Air Laut</div>
+          <div class="panel-subtitle">Hasil pengukuran jarak air laut (dalam meter)</div>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="chartWaterPure"></canvas></div>
+    </div>
+
+    <!-- 2. GRAFIK SUHU UDARA -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">2. Suhu Udara</div>
+          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan (°C)</div>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="chartTempPure"></canvas></div>
+    </div>
+
+    <!-- 3. GRAFIK KELEMBABAN UDARA -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">3. Kelembaban Udara</div>
+          <div class="panel-subtitle">Hasil pengukuran kelembaban (%)</div>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="chartHumPure"></canvas></div>
+    </div>
+
+    <!-- 4. GRAFIK KECEPATAN ANGIN -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">4. Kecepatan Angin</div>
+          <div class="panel-subtitle">Hasil pengukuran kecepatan angin (m/s)</div>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="chartWindSpeedPure"></canvas></div>
+    </div>
+
+    <!-- 5. GRAFIK ARAH ANGIN -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">5. Arah Angin</div>
+          <div class="panel-subtitle">Hasil pengukuran orientasi arah angin (Derajat °)</div>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="chartWindDirPure"></canvas></div>
+    </div>
+
+    <!-- 6. GRAFIK TEKANAN UDARA -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">6. Tekanan Udara</div>
+          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer (hPa)</div>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="chartPressurePure"></canvas></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCt2pkxO6vYpDXFHNqbFWmlMmS2JLlSjA0",
+    authDomain: "arah-angin-76f91.firebaseapp.com",
+    databaseURL: "https://arah-angin-76f91-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "arah-angin-76f91",
+    storageBucket: "arah-angin-76f91.firebasestorage.app",
+    messagingSenderId: "937712967453",
+    appId: "1:937712967453:web:36e81a289fe2a33b694bf4"
+  };
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const db = firebase.database();
+
+  let pureCharts = {};
+
+  function createPureChart(canvasId, labelName, strokeColor, fillColor) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    return new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: labelName,
+          data: [],
+          borderColor: strokeColor,
+          backgroundColor: fillColor,
+          tension: 0.2,
+          fill: true,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        scales: {
+          x: { ticks: { color: '#64748b' } },
+          y: { ticks: { color: '#64748b' }, beginAtZero: false }
+        }
+      }
+    });
+  }
+
+  function initCharts() {
+    pureCharts.water = createPureChart('chartWaterPure', 'Data Aktual Air Laut (m)', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+    pureCharts.temp = createPureChart('chartTempPure', 'Data Aktual Suhu (°C)', '#eab308', 'rgba(234, 179, 8, 0.1)');
+    pureCharts.hum = createPureChart('chartHumPure', 'Data Aktual Kelembaban (%)', '#06b6d4', 'rgba(6, 182, 212, 0.1)');
+    pureCharts.windSpeed = createPureChart('chartWindSpeedPure', 'Data Aktual Kecepatan Angin (m/s)', '#f43f5e', 'rgba(244, 63, 94, 0.1)');
+    pureCharts.windDir = createPureChart('chartWindDirPure', 'Data Aktual Arah Angin (°)', '#a855f7', 'rgba(168, 85, 247, 0.1)');
+    pureCharts.pressure = createPureChart('chartPressurePure', 'Data Aktual Tekanan Udara (hPa)', '#10b981', 'rgba(16, 185, 129, 0.1)');
+  }
+
+  async function loadPureHistoricalData() {
+    try {
+      let snapshot = await db.ref('sensor').once('value');
+      let rawData = snapshot.val();
+
+      if (!rawData) {
+        snapshot = await db.ref('cuaca/history').once('value');
+        rawData = snapshot.val();
+      }
+
+      if (!rawData) {
+        alert("Data pengukuran tidak ditemukan di database Firebase.");
+        return;
+      }
+
+      const rawList = Array.isArray(rawData) ? rawData : Object.values(rawData);
+      const cleanList = rawList.filter(d => d && typeof d === 'object');
+
+      const parsedData = cleanList.map((item, index) => {
+        let w = Number(item.jarak_cm ?? item.water_level ?? item.tinggi_muka_air ?? 0);
+        if (item.jarak_cm !== undefined) w = w / 100;
+
+        const ws = Number(item.kecepatan_ms ?? item.wind_speed ?? item.kecepatan_angin ?? 0);
+        const t = Number(item.suhu ?? item.temp ?? 0);
+        const h = Number(item.kelembapan ?? item.kelembaban ?? item.humidity ?? 0);
+        const p = Number(item.tekanan ?? item.pressure ?? 1013.25);
+        
+        let deg = Number(item.arah_angin ?? item.wind_dir ?? 0);
+        if (isNaN(deg)) {
+          const d = String(item.arah_angin).toLowerCase().trim();
+          if (d.includes('utara')) deg = 0;
+          else if (d.includes('timur')) deg = 90;
+          else if (d.includes('selatan')) deg = 180;
+          else if (d.includes('barat')) deg = 270;
+        }
+
+        let timeLabel = item.waktu ?? (item.timestamp ? item.timestamp.split(' ')[1] : `Data-${index + 1}`);
+
+        return {
+          label: timeLabel,
+          water_level: Number(w.toFixed(2)),
+          temp: t,
+          humidity: h,
+          pressure: p,
+          wind_speed: ws,
+          wind_dir: deg
+        };
+      });
+
+      const labels = parsedData.map(d => d.label);
+
+      // Render data aktual murni ke masing-masing grafik
+      pureCharts.water.data.labels = labels;
+      pureCharts.water.data.datasets[0].data = parsedData.map(d => d.water_level);
+      pureCharts.water.update();
+
+      pureCharts.temp.data.labels = labels;
+      pureCharts.temp.data.datasets[0].data = parsedData.map(d => d.temp);
+      pureCharts.temp.update();
+
+      pureCharts.hum.data.labels = labels;
+      pureCharts.hum.data.datasets[0].data = parsedData.map(d => d.humidity);
+      pureCharts.hum.update();
+
+      pureCharts.windSpeed.data.labels = labels;
+      pureCharts.windSpeed.data.datasets[0].data = parsedData.map(d => d.wind_speed);
+      pureCharts.windSpeed.update();
+
+      pureCharts.windDir.data.labels = labels;
+      pureCharts.windDir.data.datasets[0].data = parsedData.map(d => d.wind_dir);
+      pureCharts.windDir.update();
+
+      pureCharts.pressure.data.labels = labels;
+      pureCharts.pressure.data.datasets[0].data = parsedData.map(d => d.pressure);
+      pureCharts.pressure.update();
+
+    } catch (err) {
+      console.error("Gagal memuat data pengukuran murni:", err);
+      alert("Terjadi kesalahan saat mengambil data dari Firebase.");
+    }
+  }
+
+  window.onload = function() {
+    initCharts();
+    loadPureHistoricalData();
+  };
+</script>
+</body>
+</html>
