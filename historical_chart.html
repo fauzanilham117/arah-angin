@@ -58,10 +58,11 @@
     .chart-container { 
       height: 280px; 
       position: relative; 
-      min-width: 1200px; /* Lebar minimum agar grafik dapat digeser horizontal */
+      width: 100%;
+      min-width: 1000px; /* Lebar minimum agar bisa digeser horizontal */
     }
 
-    /* Styling scrollbar agar rapi */
+    /* Styling scrollbar */
     .chart-scroll-wrapper::-webkit-scrollbar { height: 8px; }
     .chart-scroll-wrapper::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
     .chart-scroll-wrapper::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
@@ -225,7 +226,7 @@
           backgroundColor: fillColor,
           tension: 0.2,
           fill: true,
-          pointRadius: 2,
+          pointRadius: 3,
           spanGaps: true
         }]
       },
@@ -286,7 +287,6 @@
           else if (d.includes('barat')) deg = 270;
         }
 
-        // Format label tanggal dan waktu agar jelas perhari (contoh: 22/10 14:00)
         let datePart = item.tanggal ?? '';
         let timePart = item.waktu ?? (item.timestamp ? item.timestamp.split(' ')[1] : `Data-${index + 1}`);
         let fullLabel = datePart ? `${datePart} ${timePart}` : timePart;
@@ -297,43 +297,34 @@
           temp: t === 0 ? null : t,
           humidity: h === 0 ? null : h,
           pressure: p === 0 ? null : p,
-          wind_speed: ws,
-          wind_dir: deg
+          wind_speed: ws === 0 ? null : ws,
+          wind_dir: deg === 0 ? null : deg
         };
       });
 
       const labels = parsedData.map(d => d.label);
 
-      // Perbarui ukuran min-width kontainer secara dinamis berdasarkan jumlah data harian agar bisa digeser
-      const dynamicWidth = Math.max(1000, labels.length * 35) + 'px';
+      // Atur lebar kontainer grafik secara dinamis agar bisa digeser horizontal dengan mulus
+      const dynamicWidth = Math.max(800, labels.length * 40) + 'px';
       document.querySelectorAll('.chart-container').forEach(el => {
-        el.style.minWidth = dynamicWidth;
+        el.style.width = dynamicWidth;
       });
 
-      // Render data ke masing-masing grafik
-      pureCharts.water.data.labels = labels;
-      pureCharts.water.data.datasets[0].data = parsedData.map(d => d.water_level);
-      pureCharts.water.update();
+      // Update data pada masing-masing grafik
+      const updateChart = (chartObj, dataArr) => {
+        if (chartObj) {
+          chartObj.data.labels = labels;
+          chartObj.data.datasets[0].data = dataArr;
+          chartObj.update();
+        }
+      };
 
-      pureCharts.temp.data.labels = labels;
-      pureCharts.temp.data.datasets[0].data = parsedData.map(d => d.temp);
-      pureCharts.temp.update();
-
-      pureCharts.hum.data.labels = labels;
-      pureCharts.hum.data.datasets[0].data = parsedData.map(d => d.humidity);
-      pureCharts.hum.update();
-
-      pureCharts.windSpeed.data.labels = labels;
-      pureCharts.windSpeed.data.datasets[0].data = parsedData.map(d => d.wind_speed);
-      pureCharts.windSpeed.update();
-
-      pureCharts.windDir.data.labels = labels;
-      pureCharts.windDir.data.datasets[0].data = parsedData.map(d => d.wind_dir);
-      pureCharts.windDir.update();
-
-      pureCharts.pressure.data.labels = labels;
-      pureCharts.pressure.data.datasets[0].data = parsedData.map(d => d.pressure);
-      pureCharts.pressure.update();
+      updateChart(pureCharts.water, parsedData.map(d => d.water_level));
+      updateChart(pureCharts.temp, parsedData.map(d => d.temp));
+      updateChart(pureCharts.hum, parsedData.map(d => d.humidity));
+      updateChart(pureCharts.windSpeed, parsedData.map(d => d.wind_speed));
+      updateChart(pureCharts.windDir, parsedData.map(d => d.wind_dir));
+      updateChart(pureCharts.pressure, parsedData.map(d => d.pressure));
 
     } catch (err) {
       console.error("Gagal memuat data pengukuran murni:", err);
