@@ -47,7 +47,7 @@
     .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
     .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
 
-    /* KONTAINER SCROLL HORIZONTAL YANG STABIL */
+    /* KONTAINER SCROLL HORIZONTAL */
     .chart-scroll-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -107,7 +107,7 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Grafik Murni Data Pengukuran</h1>
-        <p>Visualisasi histori harian (24 jam per grafik, dapat digeser ke kanan)</p>
+        <p>Visualisasi murni data histori dari database (dapat digeser ke kanan)</p>
       </div>
       <div>
         <button class="btn-action" onclick="loadPureHistoricalData()">🔄 Muat Ulang Data</button>
@@ -119,7 +119,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">1. Tinggi Muka Air Laut</div>
-          <div class="panel-subtitle">Hasil pengukuran jarak air laut per 24 jam (m)</div>
+          <div class="panel-subtitle">Hasil pengukuran jarak air laut murni (m)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -132,7 +132,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">2. Suhu Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan per 24 jam (°C)</div>
+          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan murni (°C)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -145,7 +145,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">3. Kelembaban Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran kelembaban per 24 jam (%)</div>
+          <div class="panel-subtitle">Hasil pengukuran kelembaban murni (%)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -158,7 +158,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">4. Kecepatan Angin</div>
-          <div class="panel-subtitle">Hasil pengukuran kecepatan angin per 24 jam (m/s)</div>
+          <div class="panel-subtitle">Hasil pengukuran kecepatan angin murni (m/s)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -171,7 +171,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">5. Arah Angin</div>
-          <div class="panel-subtitle">Hasil pengukuran arah angin per 24 jam (Derajat °)</div>
+          <div class="panel-subtitle">Hasil pengukuran arah angin murni (Derajat °)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -184,7 +184,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">6. Tekanan Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer per 24 jam (hPa)</div>
+          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer murni (hPa)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -212,15 +212,23 @@
 
   let pureCharts = {};
 
-  function createPureChart(canvasId, labelName, strokeColor, fillColor) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    return new Chart(ctx, {
+  function renderChart(canvasId, labelName, strokeColor, fillColor, labels, dataValues) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Hancurkan instans chart lama jika ada untuk mencegah layar putih / error kanvas ganda
+    if (pureCharts[canvasId]) {
+      pureCharts[canvasId].destroy();
+    }
+
+    pureCharts[canvasId] = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: [],
+        labels: labels,
         datasets: [{
           label: labelName,
-          data: [],
+          data: dataValues,
           borderColor: strokeColor,
           backgroundColor: fillColor,
           tension: 0.2,
@@ -241,15 +249,6 @@
     });
   }
 
-  function initCharts() {
-    pureCharts.water = createPureChart('chartWaterPure', 'Data Aktual Air Laut (m)', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
-    pureCharts.temp = createPureChart('chartTempPure', 'Data Aktual Suhu (°C)', '#eab308', 'rgba(234, 179, 8, 0.1)');
-    pureCharts.hum = createPureChart('chartHumPure', 'Data Aktual Kelembaban (%)', '#06b6d4', 'rgba(6, 182, 212, 0.1)');
-    pureCharts.windSpeed = createPureChart('chartWindSpeedPure', 'Data Aktual Kecepatan Angin (m/s)', '#f43f5e', 'rgba(244, 63, 94, 0.1)');
-    pureCharts.windDir = createPureChart('chartWindDirPure', 'Data Aktual Arah Angin (°)', '#a855f7', 'rgba(168, 85, 247, 0.1)');
-    pureCharts.pressure = createPureChart('chartPressurePure', 'Data Aktual Tekanan Udara (hPa)', '#10b981', 'rgba(16, 185, 129, 0.1)');
-  }
-
   async function loadPureHistoricalData() {
     try {
       let snapshot = await db.ref('sensor').once('value');
@@ -261,7 +260,6 @@
       }
 
       if (!rawData) {
-        alert("Data pengukuran tidak ditemukan di database Firebase.");
         return;
       }
 
@@ -303,53 +301,31 @@
 
       const labels = parsedData.map(d => d.label);
 
-      // Atur lebar dinamis pada kontainer chart agar bisa digeser horizontal
+      // Sesuaikan lebar kontainer agar bisa di-scroll horizontal secara mulus
       const dynamicWidth = Math.max(900, labels.length * 45) + 'px';
       document.querySelectorAll('.chart-container').forEach(el => {
         el.style.width = dynamicWidth;
       });
 
-      // Update data pada chart satu per satu
-      if (pureCharts.water) {
-        pureCharts.water.data.labels = labels;
-        pureCharts.water.data.datasets[0].data = parsedData.map(d => d.water_level);
-        pureCharts.water.update();
-      }
-      if (pureCharts.temp) {
-        pureCharts.temp.data.labels = labels;
-        pureCharts.temp.data.datasets[0].data = parsedData.map(d => d.temp);
-        pureCharts.temp.update();
-      }
-      if (pureCharts.hum) {
-        pureCharts.hum.data.labels = labels;
-        pureCharts.hum.data.datasets[0].data = parsedData.map(d => d.humidity);
-        pureCharts.hum.update();
-      }
-      if (pureCharts.windSpeed) {
-        pureCharts.windSpeed.data.labels = labels;
-        pureCharts.windSpeed.data.datasets[0].data = parsedData.map(d => d.wind_speed);
-        pureCharts.windSpeed.update();
-      }
-      if (pureCharts.windDir) {
-        pureCharts.windDir.data.labels = labels;
-        pureCharts.windDir.data.datasets[0].data = parsedData.map(d => d.wind_dir);
-        pureCharts.windDir.update();
-      }
-      if (pureCharts.pressure) {
-        pureCharts.pressure.data.labels = labels;
-        pureCharts.pressure.data.datasets[0].data = parsedData.map(d => d.pressure);
-        pureCharts.pressure.update();
-      }
+      // Render chart murni berdasarkan data database
+      renderChart('chartWaterPure', 'Data Aktual Air Laut (m)', '#38bdf8', 'rgba(56, 189, 248, 0.1)', labels, parsedData.map(d => d.water_level));
+      renderChart('chartTempPure', 'Data Aktual Suhu (°C)', '#eab308', 'rgba(234, 179, 8, 0.1)', labels, parsedData.map(d => d.temp));
+      renderChart('chartHumPure', 'Data Aktual Kelembaban (%)', '#06b6d4', 'rgba(6, 182, 212, 0.1)', labels, parsedData.map(d => d.humidity));
+      renderChart('chartWindSpeedPure', 'Data Aktual Kecepatan Angin (m/s)', '#f43f5e', 'rgba(244, 63, 94, 0.1)', labels, parsedData.map(d => d.wind_speed));
+      renderChart('chartWindDirPure', 'Data Aktual Arah Angin (°)', '#a855f7', 'rgba(168, 85, 247, 0.1)', labels, parsedData.map(d => d.wind_dir));
+      renderChart('chartPressurePure', 'Data Aktual Tekanan Udara (hPa)', '#10b981', 'rgba(16, 185, 129, 0.1)', labels, parsedData.map(d => d.pressure));
 
     } catch (err) {
       console.error("Gagal memuat data pengukuran murni:", err);
-      alert("Terjadi kesalahan saat mengambil data dari Firebase.");
     }
   }
 
   window.onload = function() {
-    initCharts();
     loadPureHistoricalData();
+    // Mendengarkan perubahan data secara realtime tanpa error layar putih
+    db.ref('sensor').on('value', () => {
+      loadPureHistoricalData();
+    });
   };
 </script>
 </body>
