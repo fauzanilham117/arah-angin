@@ -47,7 +47,7 @@
     .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
     .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
 
-    /* SCROLLABLE CHART CONTAINER UNTUK BISA DIGESER KE KANAN */
+    /* KONTAINER SCROLL HORIZONTAL YANG STABIL */
     .chart-scroll-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -58,11 +58,10 @@
     .chart-container { 
       height: 280px; 
       position: relative; 
-      width: 100%;
-      min-width: 1000px; /* Lebar minimum agar bisa digeser horizontal */
+      min-width: 1000px; 
     }
 
-    /* Styling scrollbar */
+    /* Styling Scrollbar */
     .chart-scroll-wrapper::-webkit-scrollbar { height: 8px; }
     .chart-scroll-wrapper::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
     .chart-scroll-wrapper::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
@@ -226,7 +225,7 @@
           backgroundColor: fillColor,
           tension: 0.2,
           fill: true,
-          pointRadius: 3,
+          pointRadius: 2,
           spanGaps: true
         }]
       },
@@ -304,27 +303,43 @@
 
       const labels = parsedData.map(d => d.label);
 
-      // Atur lebar kontainer grafik secara dinamis agar bisa digeser horizontal dengan mulus
-      const dynamicWidth = Math.max(800, labels.length * 40) + 'px';
+      // Atur lebar dinamis pada kontainer chart agar bisa digeser horizontal
+      const dynamicWidth = Math.max(900, labels.length * 45) + 'px';
       document.querySelectorAll('.chart-container').forEach(el => {
         el.style.width = dynamicWidth;
       });
 
-      // Update data pada masing-masing grafik
-      const updateChart = (chartObj, dataArr) => {
-        if (chartObj) {
-          chartObj.data.labels = labels;
-          chartObj.data.datasets[0].data = dataArr;
-          chartObj.update();
-        }
-      };
-
-      updateChart(pureCharts.water, parsedData.map(d => d.water_level));
-      updateChart(pureCharts.temp, parsedData.map(d => d.temp));
-      updateChart(pureCharts.hum, parsedData.map(d => d.humidity));
-      updateChart(pureCharts.windSpeed, parsedData.map(d => d.wind_speed));
-      updateChart(pureCharts.windDir, parsedData.map(d => d.wind_dir));
-      updateChart(pureCharts.pressure, parsedData.map(d => d.pressure));
+      // Update data pada chart satu per satu
+      if (pureCharts.water) {
+        pureCharts.water.data.labels = labels;
+        pureCharts.water.data.datasets[0].data = parsedData.map(d => d.water_level);
+        pureCharts.water.update();
+      }
+      if (pureCharts.temp) {
+        pureCharts.temp.data.labels = labels;
+        pureCharts.temp.data.datasets[0].data = parsedData.map(d => d.temp);
+        pureCharts.temp.update();
+      }
+      if (pureCharts.hum) {
+        pureCharts.hum.data.labels = labels;
+        pureCharts.hum.data.datasets[0].data = parsedData.map(d => d.humidity);
+        pureCharts.hum.update();
+      }
+      if (pureCharts.windSpeed) {
+        pureCharts.windSpeed.data.labels = labels;
+        pureCharts.windSpeed.data.datasets[0].data = parsedData.map(d => d.wind_speed);
+        pureCharts.windSpeed.update();
+      }
+      if (pureCharts.windDir) {
+        pureCharts.windDir.data.labels = labels;
+        pureCharts.windDir.data.datasets[0].data = parsedData.map(d => d.wind_dir);
+        pureCharts.windDir.update();
+      }
+      if (pureCharts.pressure) {
+        pureCharts.pressure.data.labels = labels;
+        pureCharts.pressure.data.datasets[0].data = parsedData.map(d => d.pressure);
+        pureCharts.pressure.update();
+      }
 
     } catch (err) {
       console.error("Gagal memuat data pengukuran murni:", err);
