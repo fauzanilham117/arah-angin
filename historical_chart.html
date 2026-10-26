@@ -107,7 +107,7 @@
     <div class="topbar">
       <div class="page-title">
         <h1>Grafik Murni Data Pengukuran</h1>
-        <p>Visualisasi murni data histori dari database (dapat digeser ke kanan)</p>
+        <p>Visualisasi histori harian (24 jam per grafik, dapat digeser ke kanan)</p>
       </div>
       <div>
         <button class="btn-action" onclick="loadPureHistoricalData()">🔄 Muat Ulang Data</button>
@@ -119,7 +119,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">1. Tinggi Muka Air Laut</div>
-          <div class="panel-subtitle">Hasil pengukuran jarak air laut murni (m)</div>
+          <div class="panel-subtitle">Hasil pengukuran jarak air laut per 24 jam (m)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -132,7 +132,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">2. Suhu Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan murni (°C)</div>
+          <div class="panel-subtitle">Hasil pengukuran suhu lingkungan per 24 jam (°C)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -145,7 +145,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">3. Kelembaban Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran kelembaban murni (%)</div>
+          <div class="panel-subtitle">Hasil pengukuran kelembaban per 24 jam (%)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -158,7 +158,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">4. Kecepatan Angin</div>
-          <div class="panel-subtitle">Hasil pengukuran kecepatan angin murni (m/s)</div>
+          <div class="panel-subtitle">Hasil pengukuran kecepatan angin per 24 jam (m/s)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -171,7 +171,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">5. Arah Angin</div>
-          <div class="panel-subtitle">Hasil pengukuran arah angin murni (Derajat °)</div>
+          <div class="panel-subtitle">Hasil pengukuran arah angin per 24 jam (Derajat °)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -184,7 +184,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">6. Tekanan Udara</div>
-          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer murni (hPa)</div>
+          <div class="panel-subtitle">Hasil pengukuran tekanan atmosfer per 24 jam (hPa)</div>
         </div>
       </div>
       <div class="chart-scroll-wrapper">
@@ -213,11 +213,9 @@
   let pureCharts = {};
 
   function renderChart(canvasId, labelName, strokeColor, fillColor, labels, dataValues) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById(canvasId).getContext('2d');
     
-    // Hancurkan instans chart lama jika ada untuk mencegah layar putih / error kanvas ganda
+    // Hancurkan instans chart lama jika sudah ada agar tidak terjadi error kanvas putih
     if (pureCharts[canvasId]) {
       pureCharts[canvasId].destroy();
     }
@@ -260,6 +258,7 @@
       }
 
       if (!rawData) {
+        alert("Data pengukuran tidak ditemukan di database Firebase.");
         return;
       }
 
@@ -301,13 +300,13 @@
 
       const labels = parsedData.map(d => d.label);
 
-      // Sesuaikan lebar kontainer agar bisa di-scroll horizontal secara mulus
+      // Atur lebar dinamis pada kontainer chart agar bisa digeser horizontal
       const dynamicWidth = Math.max(900, labels.length * 45) + 'px';
       document.querySelectorAll('.chart-container').forEach(el => {
         el.style.width = dynamicWidth;
       });
 
-      // Render chart murni berdasarkan data database
+      // Render ulang seluruh chart dengan data terbaru
       renderChart('chartWaterPure', 'Data Aktual Air Laut (m)', '#38bdf8', 'rgba(56, 189, 248, 0.1)', labels, parsedData.map(d => d.water_level));
       renderChart('chartTempPure', 'Data Aktual Suhu (°C)', '#eab308', 'rgba(234, 179, 8, 0.1)', labels, parsedData.map(d => d.temp));
       renderChart('chartHumPure', 'Data Aktual Kelembaban (%)', '#06b6d4', 'rgba(6, 182, 212, 0.1)', labels, parsedData.map(d => d.humidity));
@@ -317,12 +316,13 @@
 
     } catch (err) {
       console.error("Gagal memuat data pengukuran murni:", err);
+      alert("Terjadi kesalahan saat mengambil data dari Firebase.");
     }
   }
 
   window.onload = function() {
     loadPureHistoricalData();
-    // Mendengarkan perubahan data secara realtime tanpa error layar putih
+    // Tambahkan listener realtime agar grafik otomatis memperbarui data saat ada data masuk baru tanpa error layar putih
     db.ref('sensor').on('value', () => {
       loadPureHistoricalData();
     });
