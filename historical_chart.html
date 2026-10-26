@@ -47,7 +47,7 @@
     .panel-title { font-size: 14px; color: #ffffff; font-weight: 600; }
     .panel-subtitle { color: #64748b; font-size: 11px; margin-top: 4px; }
 
-    /* KONTAINER SCROLL HORIZONTAL */
+    /* KONTAINER SCROLL HORIZONTAL YANG STABIL */
     .chart-scroll-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -212,21 +212,15 @@
 
   let pureCharts = {};
 
-  function renderChart(canvasId, labelName, strokeColor, fillColor, labels, dataValues) {
+  function createPureChart(canvasId, labelName, strokeColor, fillColor) {
     const ctx = document.getElementById(canvasId).getContext('2d');
-    
-    // Hancurkan instans chart lama jika sudah ada agar tidak terjadi error kanvas putih
-    if (pureCharts[canvasId]) {
-      pureCharts[canvasId].destroy();
-    }
-
-    pureCharts[canvasId] = new Chart(ctx, {
+    return new Chart(ctx, {
       type: 'line',
       data: {
-        labels: labels,
+        labels: [],
         datasets: [{
           label: labelName,
-          data: dataValues,
+          data: [],
           borderColor: strokeColor,
           backgroundColor: fillColor,
           tension: 0.2,
@@ -245,6 +239,15 @@
         }
       }
     });
+  }
+
+  function initCharts() {
+    pureCharts.water = createPureChart('chartWaterPure', 'Data Aktual Air Laut (m)', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+    pureCharts.temp = createPureChart('chartTempPure', 'Data Aktual Suhu (°C)', '#eab308', 'rgba(234, 179, 8, 0.1)');
+    pureCharts.hum = createPureChart('chartHumPure', 'Data Aktual Kelembaban (%)', '#06b6d4', 'rgba(6, 182, 212, 0.1)');
+    pureCharts.windSpeed = createPureChart('chartWindSpeedPure', 'Data Aktual Kecepatan Angin (m/s)', '#f43f5e', 'rgba(244, 63, 94, 0.1)');
+    pureCharts.windDir = createPureChart('chartWindDirPure', 'Data Aktual Arah Angin (°)', '#a855f7', 'rgba(168, 85, 247, 0.1)');
+    pureCharts.pressure = createPureChart('chartPressurePure', 'Data Aktual Tekanan Udara (hPa)', '#10b981', 'rgba(16, 185, 129, 0.1)');
   }
 
   async function loadPureHistoricalData() {
@@ -306,13 +309,37 @@
         el.style.width = dynamicWidth;
       });
 
-      // Render ulang seluruh chart dengan data terbaru
-      renderChart('chartWaterPure', 'Data Aktual Air Laut (m)', '#38bdf8', 'rgba(56, 189, 248, 0.1)', labels, parsedData.map(d => d.water_level));
-      renderChart('chartTempPure', 'Data Aktual Suhu (°C)', '#eab308', 'rgba(234, 179, 8, 0.1)', labels, parsedData.map(d => d.temp));
-      renderChart('chartHumPure', 'Data Aktual Kelembaban (%)', '#06b6d4', 'rgba(6, 182, 212, 0.1)', labels, parsedData.map(d => d.humidity));
-      renderChart('chartWindSpeedPure', 'Data Aktual Kecepatan Angin (m/s)', '#f43f5e', 'rgba(244, 63, 94, 0.1)', labels, parsedData.map(d => d.wind_speed));
-      renderChart('chartWindDirPure', 'Data Aktual Arah Angin (°)', '#a855f7', 'rgba(168, 85, 247, 0.1)', labels, parsedData.map(d => d.wind_dir));
-      renderChart('chartPressurePure', 'Data Aktual Tekanan Udara (hPa)', '#10b981', 'rgba(16, 185, 129, 0.1)', labels, parsedData.map(d => d.pressure));
+      // Update data pada chart satu per satu
+      if (pureCharts.water) {
+        pureCharts.water.data.labels = labels;
+        pureCharts.water.data.datasets[0].data = parsedData.map(d => d.water_level);
+        pureCharts.water.update();
+      }
+      if (pureCharts.temp) {
+        pureCharts.temp.data.labels = labels;
+        pureCharts.temp.data.datasets[0].data = parsedData.map(d => d.temp);
+        pureCharts.temp.update();
+      }
+      if (pureCharts.hum) {
+        pureCharts.hum.data.labels = labels;
+        pureCharts.hum.data.datasets[0].data = parsedData.map(d => d.humidity);
+        pureCharts.hum.update();
+      }
+      if (pureCharts.windSpeed) {
+        pureCharts.windSpeed.data.labels = labels;
+        pureCharts.windSpeed.data.datasets[0].data = parsedData.map(d => d.wind_speed);
+        pureCharts.windSpeed.update();
+      }
+      if (pureCharts.windDir) {
+        pureCharts.windDir.data.labels = labels;
+        pureCharts.windDir.data.datasets[0].data = parsedData.map(d => d.wind_dir);
+        pureCharts.windDir.update();
+      }
+      if (pureCharts.pressure) {
+        pureCharts.pressure.data.labels = labels;
+        pureCharts.pressure.data.datasets[0].data = parsedData.map(d => d.pressure);
+        pureCharts.pressure.update();
+      }
 
     } catch (err) {
       console.error("Gagal memuat data pengukuran murni:", err);
@@ -321,11 +348,8 @@
   }
 
   window.onload = function() {
+    initCharts();
     loadPureHistoricalData();
-    // Tambahkan listener realtime agar grafik otomatis memperbarui data saat ada data masuk baru tanpa error layar putih
-    db.ref('sensor').on('value', () => {
-      loadPureHistoricalData();
-    });
   };
 </script>
 </body>
