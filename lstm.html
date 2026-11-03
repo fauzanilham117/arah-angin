@@ -115,7 +115,7 @@
       </div>
       <div class="topbar-actions">
         <button id="btnRun" class="btn-action" onclick="executeLSTMPrediction()">⚡ Jalankan Prediksi LSTM</button>
-        <button id="btnDownload" class="btn-action btn-download" onclick="export24HourMinuteCSV()" disabled>📥 Unduh CSV Per Menit (24 Jam)</button>
+        <button id="btnDownload" class="btn-action btn-download" onclick="export24HourCSV()" disabled>📥 Unduh CSV 24 Jam</button>
       </div>
     </div>
 
@@ -290,7 +290,7 @@
   const db = firebase.database();
 
   let charts = {};
-  let lastPredictionResult = null; // Menyimpan hasil prediksi mentah
+  let lastPredictionResult = null; // Menyimpan data hasil prediksi terakhir untuk export CSV
 
   function createSingleChart(canvasId, titleUnit, actualColor, predColor = '#ff3366') {
     const ctx = document.getElementById(canvasId).getContext('2d');
@@ -363,7 +363,7 @@
     btnRun.disabled = true;
     btnDownload.disabled = true;
     statusText.innerText = "Mengambil seluruh data histori dari Firebase...";
-    progressFill.style.width = "10%",
+    progressFill.style.width = "10%";
 
     try {
       let snapshot = await db.ref('sensor').once('value');
@@ -474,84 +474,39 @@
     });
   }
 
-  // FUNGSI BANTUAN INTERPOLASI MENIT
-  function generateMinuteSeries(startVal, endVal, stepsCount) {
-    const series = [];
-    for (let i = 0; i < stepsCount; i++) {
-      const progress = i / stepsCount;
-      const smoothFactor = (1 - Math.cos(progress * Math.PI)) / 2;
-      let val = startVal + (endVal - startVal) * smoothFactor;
-      series.push(Number(val.toFixed(2)));
-    }
-    return series;
-  }
-
-  // FUNGSI MENGUNDUH DATA PREDIKSI 24 JAM DENGAN RESOLUSI PER MENIT SESUAI GRAFIK
-  function export24HourMinuteCSV() {
+  // FUNGSI MENGUNDUH DATA PREDIKSI 24 JAM SEBAGAI CSV
+  function export24HourCSV() {
     if (!lastPredictionResult || !lastPredictionResult.predictions.length) {
       alert("Belum ada data hasil prediksi untuk diunduh.");
       return;
     }
 
     const predictions = lastPredictionResult.predictions;
-    const exportRows = [
-      ['Waktu_Menit', 'Tinggi_Air_Laut_m', 'Suhu_C', 'Kelembaban_Persen', 'Tekanan_hPa', 'Kecepatan_Angin_ms', 'Arah_Angin_Derajat']
+    const rows = [
+      ['Langkah_Ke', 'Estimasi_Waktu', 'Tinggi_Air_Laut_m', 'Suhu_C', 'Kelembaban_Persen', 'Tekanan_hPa', 'Kecepatan_Angin_ms', 'Arah_Angin_Derajat']
     ];
 
-    // Total 48 langkah (masing-masing selang waktu 30 menit). Dipecah menjadi 30 titik per langkah (resolusi per menit)
-    const totalSteps = predictions.length;
-    
-    // Titik awal referensi menggunakan nilai prediksi pertama / data terakhir historis
-    let prevPoint = {
-      water_level: predictions[0].water_level,
-      temp: predictions[0].temp,
-      humidity: predictions[0].humidity,
-      pressure: predictions[0].pressure,
-      wind_speed: predictions[0].wind_speed,
-      wind_dir: predictions[0].wind_dir
-    };
+    predictions.forEach((p, idx) => {
+      const jamKe = ((idx + 1) * 0.5).toFixed(1);
+      rows.push([
+        `Langkah_${idx + 1}`,
+        `+${jamKe}_Jam`,
+        p.water_level.toFixed(2),
+        p.temp.toFixed(1),
+        p.humidity.toFixed(1),
+        p.pressure.toFixed(1),
+        p.wind_speed.toFixed(1),
+        p.wind_dir.toFixed(0)
+      ]);
+    });
 
-    let globalMinuteCounter = 0;
-
-    for (let i = 0; i < totalSteps; i++) {
-      const curr = predictions[i];
-      // Karena interval data adalah 30 menit, kita buat 30 interpolasi per menit per langkah
-      const stepsCount = 30;
-
-      const waterSeries = generateMinuteSeries(prevPoint.water_level, curr.water_level, stepsCount);
-      const tempSeries = generateMinuteSeries(prevPoint.temp, curr.temp, stepsCount);
-      const humSeries = generateMinuteSeries(prevPoint.humidity, curr.humidity, stepsCount);
-      const pressureSeries = generateMinuteSeries(prevPoint.pressure, curr.pressure, stepsCount);
-      const windSpeedSeries = generateMinuteSeries(prevPoint.wind_speed, curr.wind_speed, stepsCount);
-      const windDirSeries = generateMinuteSeries(prevPoint.wind_dir, curr.wind_dir, stepsCount);
-
-      for (let m = 0; m < stepsCount; m++) {
-        globalMinuteCounter++;
-        const hours = Math.floor(globalMinuteCounter / 60);
-        const mins = globalMinuteCounter % 60;
-        const timeLabel = `+${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-
-        exportRows.push([
-          timeLabel,
-          waterSeries[m],
-          tempSeries[m],
-          humSeries[m],
-          pressureSeries[m],
-          windSpeedSeries[m],
-          windDirSeries[m]
-        ]);
-      }
-
-      prevPoint = curr;
-    }
-
-    const csvContent = exportRows.map(e => e.join(",")).join("\n");
+    const csvContent = rows.map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Prediksi_LSTM_24Jam_PerMenit_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `Prediksi_LSTM_24Jam_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
