@@ -38,9 +38,11 @@
 
     /* MAIN CONTENT */
     .main { margin-left: 250px; width: calc(100% - 250px); min-height: 100vh; padding: 25px; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
     .page-title h1 { font-size: 24px; color: #ffffff; margin-bottom: 4px; }
     .page-title p { font-size: 12px; color: #64748b; }
+
+    .topbar-actions { display: flex; gap: 10px; }
 
     .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 18px; margin-bottom: 18px; }
     .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
@@ -50,6 +52,9 @@
     .btn-action { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
     .btn-action:hover { background: #1d4ed8; }
     .btn-action:disabled { background: #475569; cursor: not-allowed; }
+
+    .btn-download { background: #10b981; }
+    .btn-download:hover { background: #059669; }
 
     .progress-bar-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
     .progress-bar-fill { width: 0%; background: #06b6d4; height: 100%; transition: width 0.3s ease; }
@@ -108,8 +113,9 @@
         <h1>Prediksi Model LSTM</h1>
         <p>Perbandingan kurva warna Aktual Histori vs Prediksi LSTM (Interval 30 Menit / 24 Jam)</p>
       </div>
-      <div>
+      <div class="topbar-actions">
         <button id="btnRun" class="btn-action" onclick="executeLSTMPrediction()">⚡ Jalankan Prediksi LSTM</button>
+        <button id="btnDownload" class="btn-action btn-download" onclick="export24HourCSV()" disabled>📥 Unduh CSV 24 Jam</button>
       </div>
     </div>
 
@@ -284,6 +290,7 @@
   const db = firebase.database();
 
   let charts = {};
+  let lastPredictionResult = null; // Menyimpan data hasil prediksi terakhir untuk export CSV
 
   function createSingleChart(canvasId, titleUnit, actualColor, predColor = '#ff3366') {
     const ctx = document.getElementById(canvasId).getContext('2d');
@@ -349,10 +356,12 @@
 
   async function executeLSTMPrediction() {
     const btnRun = document.getElementById('btnRun');
+    const btnDownload = document.getElementById('btnDownload');
     const statusText = document.getElementById('statusText');
     const progressFill = document.getElementById('progressFill');
 
     btnRun.disabled = true;
+    btnDownload.disabled = true;
     statusText.innerText = "Mengambil seluruh data histori dari Firebase...";
     progressFill.style.width = "10%";
 
@@ -367,7 +376,6 @@
 
       if (!rawData) throw new Error("Data sensor tidak ditemukan di database.");
 
-      // DIUBAH DI SINI: Lookback 14 (jendela historis) dan 48 langkah prediksi (48 x 30 menit = 24 Jam)
       const result = await LSTMPredictor.run(
         rawData,
         14,   
@@ -381,6 +389,9 @@
 
       progressFill.style.width = "100%";
       statusText.innerText = "Prediksi 24 Jam Selesai! (Interval 30 Menit per Langkah).";
+      
+      lastPredictionResult = result;
+      btnDownload.disabled = false;
 
       updateUI(result);
     } catch (err) {
@@ -420,7 +431,7 @@
     }
 
     const histLabels = historical.map(d => d.label);
-    const predLabels = predictions.map((_, idx) => `+${(idx + 1) * 30}m`); // Menandakan interval 30 menit
+    const predLabels = predictions.map((_, idx) => `+${(idx + 1) * 0.5}h`);
     const allLabels = [...histLabels, ...predLabels];
 
     const padNulls = Array(lookback).fill(null);
@@ -448,7 +459,7 @@
     const tableBody = document.getElementById('predictionTableBody');
     tableBody.innerHTML = '';
     predictions.forEach((p, idx) => {
-      const jamKe = ((idx + 1) * 0.5).toFixed(1); // Menampilkan keterangan waktu dalam jam (+0.5h, +1.0h, dst.)
+      const jamKe = ((idx + 1) * 0.5).toFixed(1);
       tableBody.innerHTML += `
         <tr>
           <td>Langkah +${idx + 1} (${jamKe} Jam)</td>
@@ -461,6 +472,44 @@
         </tr>
       `;
     });
+  }
+
+  // FUNGSI MENGUNDUH DATA PREDIKSI 24 JAM SEBAGAI CSV
+  function export24HourCSV() {
+    if (!lastPredictionResult || !lastPredictionResult.predictions.length) {
+      alert("Belum ada data hasil prediksi untuk diunduh.");
+      return;
+    }
+
+    const predictions = lastPredictionResult.predictions;
+    const rows = [
+      ['Langkah_Ke', 'Estimasi_Waktu', 'Tinggi_Air_Laut_m', 'Suhu_C', 'Kelembaban_Persen', 'Tekanan_hPa', 'Kecepatan_Angin_ms', 'Arah_Angin_Derajat']
+    ];
+
+    predictions.forEach((p, idx) => {
+      const jamKe = ((idx + 1) * 0.5).toFixed(1);
+      rows.push([
+        `Langkah_${idx + 1}`,
+        `+${jamKe}_Jam`,
+        p.water_level.toFixed(2),
+        p.temp.toFixed(1),
+        p.humidity.toFixed(1),
+        p.pressure.toFixed(1),
+        p.wind_speed.toFixed(1),
+        p.wind_dir.toFixed(0)
+      ]);
+    });
+
+    const csvContent = rows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Prediksi_LSTM_24Jam_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   window.onload = initCharts;
